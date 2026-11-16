@@ -1,0 +1,114 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis, postgis_topology, fuzzystrmatch, postgis_tiger_geocoder]
+}
+
+enum AccommodationTier {
+  BUDGET
+  STANDARD
+  COMFORT
+}
+
+enum ConditionCategory {
+  WEATHER
+  OFFICIAL_ADVISORY
+  TRAIL_REPORT
+}
+
+model Region {
+  id           String        @id @default(uuid())
+  slug         String        @unique
+  name         String
+  description  String
+  boundary     Unsupported("geometry(Polygon, 4326)")?
+  destinations Destination[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model Destination {
+  id                 String            @id @default(uuid())
+  slug               String            @unique
+  name               String
+  tagline            String
+  description        String
+  maxElevationM      Int
+  difficultyStars    Int
+  difficultyCriteria String
+  scenicStars        Int
+  standardDays       Int
+  bestSeasons        String[]
+  permitsRequired    String[]
+  mapSpriteKey       String
+  mapX               Float
+  mapY               Float
+  coordinates        Unsupported("geometry(Point, 4326)")?
+
+  permitCostPerPersonNpr    Int
+  transportCostPerPersonNpr Int
+  guideDailyRateNpr         Int
+  porterDailyRateNpr        Int
+  foodDailyPerPersonNpr     Int
+
+  regionId       String
+  region         Region            @relation(fields: [regionId], references: [id])
+  checkpoints    RouteCheckpoint[]
+  accommodations Accommodation[]
+  conditions     TrailCondition[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RouteCheckpoint {
+  id             String      @id @default(uuid())
+  dayNumber      Int
+  orderIndex     Int
+  name           String
+  elevationM     Int
+  distanceKm     Float
+  walkingHours   Float
+  elevationGainM Int
+  elevationLossM Int
+  notes          String?
+  coordinates    Unsupported("geometry(Point, 4326)")?
+
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+}
+
+model Accommodation {
+  id                String            @id @default(uuid())
+  name              String
+  tier              AccommodationTier
+  pricePerNightNpr  Int
+  checkpointName    String
+  distanceToNextKm  Float?
+  facilities        String[]
+  contactPhone      String?
+  lastVerifiedAt    DateTime          @default(now())
+
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+}
+
+model TrailCondition {
+  id                 String            @id @default(uuid())
+  category           ConditionCategory
+  title              String
+  summary            String
+  sourceName         String
+  sourceUrl          String?
+  geographicCoverage String
+  confidenceLevel    String
+  reportedAt         DateTime          @default(now())
+
+  destinationId String
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+}
