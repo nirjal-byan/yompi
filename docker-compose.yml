@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: yompi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: yompi_admin
+      POSTGRES_PASSWORD: yompi_password
+      POSTGRES_DB: yompi_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - yompi_pgdata:/var/lib/postgresql/data
+
+volumes:
+  yompi_pgdata:
