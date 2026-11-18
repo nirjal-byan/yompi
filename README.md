@@ -1,6 +1,22 @@
-# YOMPI
+<p align="center">
+  <img src="apps/web/public/brand/yompi-mark.png" alt="YOMPI: a backpacking rabbit on a mountain at sunrise" width="160" />
+</p>
 
-YOMPI is a full-stack monorepo for a Nepal-focused trekking and adventure discovery platform.
+<h1 align="center">YOMPI</h1>
+
+<p align="center"><strong>Your Himalayan Adventure Buddy.</strong><br />One hop at a time.</p>
+
+---
+
+Big mountains. Little hops. 🐇⛰️
+
+Meet YOMPI, a trekking buddy for Nepal. It's a backpack-wearing rabbit who has read every trail guide, hates surprise costs and will happily nag you to pack warmer socks.
+
+Instead of a wall of tabs and spreadsheets, you explore Nepal like a game: an interactive map of the real country, with its mountains, trails, villages and gateway towns like Kathmandu and Pokhara. Hop into a region like Annapurna, Everest, Langtang, Manaslu or Mustang, and see what a trek really involves: how hard it is, how many days it takes, which permits you need, where to sleep and what it will cost for your group. Real trails, thoughtful stays and a budget that adds up.
+
+**Where we are:** early days. The foundation, the design system and email sign-in are in place. The map, trek data, budget calculator and live trail conditions are next. Nothing here is live trail advice yet.
+
+YOMPI is a full-stack monorepo: Next.js, NestJS, PostgreSQL with PostGIS, and PixiJS for the map.
 
 ## Repository structure
 
