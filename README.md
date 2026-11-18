@@ -87,6 +87,10 @@ Apply the migrations to a fresh database:
 pnpm db:migrate
 ```
 
+## Email in development (sign-in links)
+
+`docker compose up -d` also starts **Mailpit**, a local mail catcher. Sign-in emails are never delivered to real inboxes in development. Open http://localhost:8025 to read them. To use a real SMTP server, set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` in `.env`. Also set `WEB_URL` and `API_PUBLIC_URL` to your real URLs, because the link in the email points at the API.
+
 ## Prisma commands
 
 Generate Prisma client:
