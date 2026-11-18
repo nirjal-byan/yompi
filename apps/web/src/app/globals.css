@@ -1,26 +1,39 @@
 @import "tailwindcss";
 
+/* YOMPI design tokens (from the Figma design) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #faf6ee;
+  --surface: #fffdf8;
+  --surface-muted: #f0e9dd;
+  --foreground: #3b2a26;
+  --muted: #6b625a;
+  --border: #3b2a26;
+  --border-soft: #e2dccf;
+  --primary: #ffb43e;
+  --primary-hover: #f5a524;
+  --accent: #2f5d3a;
+  --accent-soft: #e4ebdd;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-pixel);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
 }
