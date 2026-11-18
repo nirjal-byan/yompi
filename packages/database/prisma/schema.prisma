@@ -113,3 +113,36 @@ model TrailCondition {
   destinationId String
   destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
 }
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String
+  sessions  Session[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+// One-time sign-in link. Only the SHA-256 hash of the token is stored.
+model LoginToken {
+  id        String    @id @default(uuid())
+  tokenHash String    @unique
+  email     String
+  name      String?
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+// Server-side session. Only the SHA-256 hash of the cookie token is stored.
+model Session {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
