@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const AccommodationTierSchema = z.enum(["BUDGET", "STANDARD", "COMFORT"]);
 export type AccommodationTier = z.infer<typeof AccommodationTierSchema>;
