@@ -35,6 +35,8 @@ export interface GeoFeatureProperties {
   name: string;
   nameLocal: string | null;
   elevationM: number | null;
+  /** Extra source data, e.g. a trail's mapped length (computedKm) vs OSM's listed length (osmDistanceKm). */
+  details: Record<string, unknown> | null;
   sourceKey: string;
   sourceRef: string;
 }

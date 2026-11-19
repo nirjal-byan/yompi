@@ -14,6 +14,7 @@ interface FeatureRow {
   name: string;
   nameLocal: string | null;
   elevationM: number | null;
+  details: Record<string, unknown> | null;
   geometry: GeoFeature['geometry'];
   sourceKey: string;
   sourceRef: string;
@@ -35,7 +36,7 @@ export class GeoService {
       : Prisma.empty;
 
     const rows = await this.prisma.client.$queryRaw<FeatureRow[]>`
-      SELECT g.id, g.kind::text AS kind, g.name, g."nameLocal", g."elevationM",
+      SELECT g.id, g.kind::text AS kind, g.name, g."nameLocal", g."elevationM", g.properties AS details,
              ST_AsGeoJSON(g.geometry, 5)::json AS geometry,
              s.key AS "sourceKey", g."sourceRef"
       FROM "GeoFeature" g
@@ -52,6 +53,7 @@ export class GeoService {
         name: row.name,
         nameLocal: row.nameLocal,
         elevationM: row.elevationM,
+        details: row.details,
         sourceKey: row.sourceKey,
         sourceRef: row.sourceRef,
       },
