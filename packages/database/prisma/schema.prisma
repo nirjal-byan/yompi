@@ -155,6 +155,8 @@ enum GeoFeatureKind {
   CITY
   GATEWAY
   TRAIL
+  LAKE
+  PASS
 }
 
 // Where a dataset came from. Attribution must be shown wherever the data is displayed.
