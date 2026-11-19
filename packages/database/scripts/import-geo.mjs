@@ -1,13 +1,21 @@
-// Imports real-world geodata into the GeoFeature table. Safe to re-run (upserts by source + ref).
+// Imports real-world geodata into the GeoFeature table. Safe to re-run (upserts by source + ref,
+// and removes rows of a kind that a run no longer produces).
 //
 //   pnpm db:import-geo
 //
+// What is imported is CURATED on purpose: only places trekkers actually know. The names below are
+// an editorial choice; coordinates, heights and geometry always come from the open datasets.
 // Uses raw SQL only, so it does not depend on the generated Prisma models.
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+// Optional: GEO_ONLY=lakes,passes re-imports just those sections (boundary, peaks, lakes, passes, cities, gateways, trails).
+const only = process.env.GEO_ONLY ? process.env.GEO_ONLY.split(",").map((x) => x.trim()) : null;
+const want = (section) => !only || only.includes(section);
 const USER_AGENT = "yompi-geo-import/0.1";
 const OVERPASS_URL = "https://overpass-api.de/api/interpreter";
+/** south,west,north,east: Nepal plus a small margin so border peaks and passes are found. */
+const BBOX = "26.3,80.0,30.5,88.3";
 
 const SOURCES = {
   geoboundaries: {
@@ -26,18 +34,86 @@ const SOURCES = {
   },
 };
 
-// OSM relation ids of trekking routes. Curated by hand from OSM search results; the route
-// geometry itself comes from OSM. Everest Base Camp and Upper Mustang have no suitable
-// relation in OSM yet, so they are intentionally absent rather than invented. Mardi Himal
-// (2 km mapped) and Everest South Col (a climbing route) were rejected as misleading.
-// Some imported trails are only partly mapped: compare properties.computedKm to osmDistanceKm.
-const TRAIL_RELATION_IDS = [1187310, 17548991, 1328173, 1269089, 11077478];
+// [display name, OSM name aliases (case-insensitive, exact)]
+const PEAKS = [
+  ["Mount Everest", ["Mount Everest", "Sagarmatha", "Chomolungma"]],
+  ["Lhotse", ["Lhotse"]],
+  ["Makalu", ["Makalu", "Mount Makalu"]],
+  ["Cho Oyu", ["Cho Oyu"]],
+  ["Kangchenjunga", ["Kangchenjunga", "Kanchenjunga", "Kangchendzonga", "Kanchanjunga"]],
+  ["Manaslu", ["Manaslu", "Kutang"]],
+  ["Dhaulagiri", ["Dhaulagiri", "Dhaulagiri I"]],
+  ["Annapurna I", ["Annapurna", "Annapurna I"]],
+  ["Annapurna South", ["Annapurna South"]],
+  ["Machhapuchhre", ["Machhapuchhre", "Machapuchare", "Machhapuchare", "Machhapuchre", "Machhapuchchhre", "Fishtail"]],
+  ["Gangapurna", ["Gangapurna"]],
+  ["Hiunchuli", ["Hiunchuli"]],
+  ["Tilicho Peak", ["Tilicho Peak"]],
+  ["Mardi Himal", ["Mardi Himal"]],
+  ["Poon Hill", ["Poon Hill", "Poonhill"]],
+  ["Ama Dablam", ["Ama Dablam"]],
+  ["Pumori", ["Pumori"]],
+  ["Nuptse", ["Nuptse", "Nuptse I"]],
+  ["Thamserku", ["Thamserku"]],
+  ["Kangtega", ["Kangtega", "Kantega"]],
+  ["Cholatse", ["Cholatse"]],
+  ["Lobuche East", ["Lobuche East"]],
+  ["Island Peak", ["Island Peak", "Imja Tse"]],
+  ["Mera Peak", ["Mera Peak"]],
+  ["Baruntse", ["Baruntse"]],
+  ["Kala Patthar", ["Kala Patthar", "Kalapatthar"]],
+  ["Gokyo Ri", ["Gokyo Ri"]],
+  ["Langtang Lirung", ["Langtang Lirung"]],
+  ["Gauri Sankar", ["Gauri Sankar", "Gaurishankar"]],
+];
 
-// Trek gateways, matched by name inside Nepal. Coordinates come from OSM.
+const LAKES = [
+  ["Tilicho Lake", ["Tilicho Lake", "Tilicho Tal", "Tilicho"]],
+  ["Rara Lake", ["Rara Lake", "Rara Tal", "Mahendra Tal", "Rara Daha"]],
+  ["Phoksundo Lake", ["Phoksundo Lake", "Phoksundo Tal", "Shey Phoksundo Lake", "Phoksundo", "Phoksumdo Lake"]],
+  // Gokyo Lakes: OSM has no lake polygon with these names (only the village and Gokyo Ri), so none is imported.
+  ["Gosaikunda", ["Gosaikunda", "Gosainkunda", "Gosainkund", "Gosaikunda Lake", "Gosain Kunda"]],
+  ["Phewa Lake", ["Phewa Lake", "Phewa Tal", "Fewa Lake", "Fewa Tal", "Phewa"]],
+  ["Imja Tsho", ["Imja Tsho", "Imja Lake"]],
+  ["Tsho Rolpa", ["Tsho Rolpa", "Chho Rolpa", "Rolpa Lake"]],
+  ["Birendra Lake", ["Birendra Tal", "Birendra Lake", "Birendra Taal"]],
+];
+
+const PASSES = [
+  ["Thorong La", ["Thorong La", "Thorung La", "Thorong La Pass", "Thorung La Pass", "Thorong Pass"]],
+  ["Cho La", ["Cho La", "Cho La Pass"]],
+  ["Renjo La", ["Renjo La", "Renjo La Pass"]],
+  ["Kongma La", ["Kongma La", "Kongma La Pass"]],
+  ["Larkya La", ["Larkya La", "Larkya Pass", "Larkya La Pass", "Larke La", "Larkye La"]],
+  ["Mesokanto La", ["Mesokanto La", "Mesokanto Pass", "Mesokanto La Pass"]],
+  ["Laurebina La", ["Laurebina La", "Laurebina Pass", "Laurabina La", "Laurebina Yak"]],
+  // Kang La is deliberately absent: the name is shared by passes in different regions.
+  ["Teri La", ["Teri La", "Teri La Pass"]],
+  ["Saribung La", ["Saribung La", "Saribung Pass"]],
+  ["Sherpani Col", ["Sherpani Col"]],
+  ["Amphu Labtsa", ["Amphu Labtsa", "Amphu Laptsa", "Amphulapcha"]],
+  ["Pangsang La", ["Pangsang La", "Pangsang Pass", "Pangsang La Pass"]],
+  ["Nangpa La", ["Nangpa La"]],
+];
+
+const IMPORTANT_CITIES = ["Kathmandu", "Pokhara"];
+
+// Trek gateways, matched by name inside Nepal.
 const GATEWAY_NAMES = [
   "Lukla", "Phakding", "Namche Bazaar", "Jomsom", "Muktinath", "Manang", "Besisahar",
   "Syabrubesi", "Dhunche", "Arughat", "Nayapul",
 ];
+
+// OSM relation ids of trekking routes, curated by hand. Route geometry comes from OSM.
+// Everest Base Camp and Upper Mustang have no suitable relation in OSM yet, so they are
+// intentionally absent rather than invented. Mardi Himal (2 km mapped) and Everest South Col
+// (a climbing route) were rejected as misleading. Some imported trails are only partly mapped:
+// compare properties.computedKm to osmDistanceKm.
+const TRAIL_RELATION_IDS = [1187310, 17548991, 1328173, 1269089, 11077478];
+
+// ------------------------------------------------------------------ database helpers
+
+const keptRefs = new Map(); // kind -> Set of sourceRef imported this run
 
 async function upsertSource(source) {
   const rows = await prisma.$queryRaw`
@@ -50,6 +126,8 @@ async function upsertSource(source) {
 }
 
 async function upsertFeature({ kind, name, nameLocal = null, elevationM = null, properties = {}, geometry, sourceId, sourceRef }) {
+  if (!keptRefs.has(kind)) keptRefs.set(kind, new Set());
+  keptRefs.get(kind).add(sourceRef);
   await prisma.$executeRaw`
     INSERT INTO "GeoFeature" (id, kind, name, "nameLocal", "elevationM", properties, geometry, "sourceId", "sourceRef", "fetchedAt")
     VALUES (gen_random_uuid()::text, ${kind}::"GeoFeatureKind", ${name}, ${nameLocal}::text, ${elevationM}::int,
@@ -59,6 +137,19 @@ async function upsertFeature({ kind, name, nameLocal = null, elevationM = null, 
       "nameLocal" = EXCLUDED."nameLocal", "elevationM" = EXCLUDED."elevationM",
       properties = EXCLUDED.properties, geometry = EXCLUDED.geometry, "fetchedAt" = now()`;
 }
+
+// Remove rows of a kind that this run no longer produces (e.g. places dropped from a curated list).
+async function pruneStale(sourceId) {
+  for (const [kind, refs] of keptRefs) {
+    if (refs.size === 0) continue;
+    const removed = await prisma.$executeRaw`
+      DELETE FROM "GeoFeature"
+      WHERE kind = ${kind}::"GeoFeatureKind" AND "sourceId" = ${sourceId} AND "sourceRef" <> ALL(${[...refs]}::text[])`;
+    if (removed > 0) console.log(`pruned   : ${removed} stale ${kind} rows`);
+  }
+}
+
+// ------------------------------------------------------------------ overpass helpers
 
 // The public Overpass server is shared and rate limited: pause between calls, retry on 429/5xx.
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -71,7 +162,15 @@ async function overpass(query) {
       headers: { "User-Agent": USER_AGENT, "Content-Type": "application/x-www-form-urlencoded" },
       body: `data=${encodeURIComponent(query)}`,
     });
-    if (res.ok) return (await res.json()).elements;
+    if (res.ok) {
+      const json = await res.json();
+      // Overpass answers 200 with an empty result and a "remark" when it runs out of time or memory.
+      // Treat that as a failure, otherwise a busy server silently looks like "nothing found".
+      if (!json.remark || !/runtime error|timed out|out of memory/i.test(json.remark)) return json.elements;
+      console.log(`  overpass remark: ${json.remark.slice(0, 80)}, retry ${attempt}/5 in ${attempt * 10}s`);
+      await sleep(attempt * 10_000);
+      continue;
+    }
     if (res.status !== 429 && res.status < 500) throw new Error(`Overpass responded ${res.status}`);
     console.log(`  overpass ${res.status}, retry ${attempt}/5 in ${attempt * 10}s`);
     await sleep(attempt * 10_000);
@@ -79,9 +178,42 @@ async function overpass(query) {
   throw new Error("Overpass is unavailable, try again later");
 }
 
-const pointOf = (el) => ({ type: "Point", coordinates: [el.lon, el.lat] });
+const pointOf = (el) => ({ type: "Point", coordinates: [el.lon ?? el.center.lon, el.lat ?? el.center.lat] });
 const englishName = (tags) => tags["name:en"] ?? tags.name;
 const localName = (tags) => tags["name:ne"] ?? (tags["name:en"] && tags.name !== tags["name:en"] ? tags.name : null);
+const elevationOf = (tags) => {
+  const value = parseFloat(String(tags.ele ?? "").replace(",", "."));
+  return Number.isFinite(value) ? Math.round(value) : null;
+};
+
+/**
+ * Finds the OSM feature for each curated entry. `selectors` are Overpass filters such as
+ * `node["natural"="peak"]`. Returns one best match per entry (highest elevation wins) and reports
+ * entries OSM does not have, so gaps are visible instead of silently guessed.
+ */
+async function findCurated(entries, selectors, label, { inNepal = false } = {}) {
+  const everyAlias = entries.flatMap(([, aliases]) => aliases);
+  const regex = `^(${everyAlias.join("|")})$`;
+  const scope = inNepal ? "(area.a)" : `(${BBOX})`;
+  const parts = selectors.flatMap((selector) => [
+    `${selector}["name"~"${regex}",i]${scope};`,
+    `${selector}["name:en"~"${regex}",i]${scope};`,
+  ]);
+  const prefix = inNepal ? 'area["ISO3166-1"="NP"]->.a;' : "";
+  const elements = await overpass(`[out:json][timeout:180];${prefix}(${parts.join("")});out center tags;`);
+
+  const best = new Map();
+  for (const el of elements) {
+    const names = [el.tags.name, el.tags["name:en"]].filter(Boolean).map((n) => n.toLowerCase());
+    const entry = entries.find(([, aliases]) => aliases.some((alias) => names.includes(alias.toLowerCase())));
+    if (!entry) continue;
+    const current = best.get(entry[0]);
+    if (!current || (elevationOf(el.tags) ?? 0) > (elevationOf(current.tags) ?? 0)) best.set(entry[0], el);
+  }
+  const missing = entries.map(([name]) => name).filter((name) => !best.has(name));
+  console.log(`${label.padEnd(9)}: ${best.size} of ${entries.length}${missing.length ? ` (not in OSM: ${missing.join(", ")})` : ""}`);
+  return best;
+}
 
 function lineLengthKm(lines) {
   const rad = Math.PI / 180;
@@ -97,6 +229,8 @@ function lineLengthKm(lines) {
   }
   return km;
 }
+
+// ------------------------------------------------------------------ importers
 
 async function importBoundary() {
   const meta = await (await fetch("https://www.geoboundaries.org/api/current/gbOpen/NPL/ADM0/", { headers: { "User-Agent": USER_AGENT } })).json();
@@ -114,33 +248,49 @@ async function importBoundary() {
   console.log("boundary : Nepal (geoBoundaries, simplified)");
 }
 
+async function importCurated(kind, entries, selectors, label, sourceId, options) {
+  const found = await findCurated(entries, selectors, label, options);
+  for (const [displayName, el] of found) {
+    await upsertFeature({
+      kind,
+      name: displayName,
+      nameLocal: el.tags["name:ne"] ?? (el.tags.name !== displayName ? el.tags.name : null),
+      elevationM: elevationOf(el.tags),
+      properties: { osmName: el.tags.name ?? null },
+      geometry: pointOf(el),
+      sourceId,
+      sourceRef: `${el.type}/${el.id}`,
+    });
+  }
+}
+
 async function importPlaces(sourceId) {
   const area = `area["ISO3166-1"="NP"]->.a;`;
 
-  const peaks = await overpass(
-    `[out:json][timeout:90];${area}node(area.a)["natural"="peak"]["name"]["ele"~"^(5[5-9]|[6-8][0-9])[0-9]{2}(\\.[0-9]+)?$"];out;`,
+  if (want("peaks")) await importCurated("PEAK", PEAKS, ['node["natural"="peak"]', 'node["tourism"="viewpoint"]'], "peaks", sourceId);
+  if (want("lakes")) await importCurated("LAKE", LAKES, ['way["natural"="water"]', 'relation["natural"="water"]'], "lakes", sourceId, { inNepal: true });
+  if (want("passes")) await importCurated("PASS", PASSES, ['node["mountain_pass"="yes"]', 'node["natural"="saddle"]'], "passes", sourceId);
+
+  if (want("cities")) {
+  const cityNames = IMPORTANT_CITIES.join("|");
+  const cities = await overpass(
+    `[out:json][timeout:90];${area}(node(area.a)["place"~"city|town"]["name:en"~"^(${cityNames})$"];` +
+      `node(area.a)["place"~"city|town"]["name"~"^(${cityNames})$"];);out;`,
   );
-  let peakCount = 0;
-  for (const el of peaks) {
-    const elevationM = Math.round(parseFloat(el.tags.ele));
-    if (!Number.isFinite(elevationM)) continue;
-    await upsertFeature({
-      kind: "PEAK", name: englishName(el.tags), nameLocal: localName(el.tags), elevationM,
-      geometry: pointOf(el), sourceId, sourceRef: `node/${el.id}`,
-    });
-    peakCount++;
-  }
-  console.log(`peaks    : ${peakCount} (5,500 m and above)`);
-
-  const cities = await overpass(`[out:json][timeout:90];${area}node(area.a)["place"="city"]["name"];out;`);
+  const seenCities = new Set();
   for (const el of cities) {
+    const name = englishName(el.tags);
+    if (seenCities.has(name)) continue;
+    seenCities.add(name);
     await upsertFeature({
-      kind: "CITY", name: englishName(el.tags), nameLocal: localName(el.tags),
+      kind: "CITY", name, nameLocal: localName(el.tags),
       geometry: pointOf(el), sourceId, sourceRef: `node/${el.id}`,
     });
   }
-  console.log(`cities   : ${cities.length}`);
+  console.log(`cities   : ${seenCities.size} of ${IMPORTANT_CITIES.length} (${[...seenCities].join(", ")})`);
+  }
 
+  if (want("gateways")) {
   const names = GATEWAY_NAMES.join("|");
   const gateways = await overpass(
     `[out:json][timeout:90];${area}(node(area.a)["place"~"town|village|hamlet|locality"]["name:en"~"^(${names})$"];` +
@@ -157,6 +307,7 @@ async function importPlaces(sourceId) {
     });
   }
   console.log(`gateways : ${seen.size} of ${GATEWAY_NAMES.length} (${[...seen].join(", ")})`);
+  }
 }
 
 async function importTrails(sourceId) {
@@ -174,7 +325,12 @@ async function importTrails(sourceId) {
     await upsertFeature({
       kind: "TRAIL",
       name: rel.tags.name,
-      properties: { route: rel.tags.route ?? null, network: rel.tags.network ?? null, osmDistanceKm: rel.tags.distance ? Number(rel.tags.distance) : null, computedKm: Math.round(lineLengthKm(lines)) },
+      properties: {
+        route: rel.tags.route ?? null,
+        network: rel.tags.network ?? null,
+        osmDistanceKm: rel.tags.distance ? Number(rel.tags.distance) : null,
+        computedKm: Math.round(lineLengthKm(lines)),
+      },
       geometry: { type: "MultiLineString", coordinates: lines },
       sourceId,
       sourceRef: `relation/${rel.id}`,
@@ -184,10 +340,11 @@ async function importTrails(sourceId) {
 }
 
 try {
-  await importBoundary();
+  if (want("boundary")) await importBoundary();
   const osmId = await upsertSource(SOURCES.osm);
   await importPlaces(osmId);
-  await importTrails(osmId);
+  if (want("trails")) await importTrails(osmId);
+  await pruneStale(osmId);
   console.log("done");
 } finally {
   await prisma.$disconnect();
