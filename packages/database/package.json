@@ -17,6 +17,7 @@
     "typescript": "^5.7.0"
   },
   "scripts": {
-    "build": "prisma generate --schema=./prisma/schema.prisma && tsc"
+    "build": "prisma generate --schema=./prisma/schema.prisma && tsc",
+    "import-geo": "node scripts/import-geo.mjs"
   }
 }
