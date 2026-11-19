@@ -115,7 +115,9 @@ The Explore map draws real geography from the database. After the migrations are
 pnpm db:import-geo
 ```
 
-This downloads the Nepal boundary (geoBoundaries, CC BY 4.0) and peaks, cities, gateways and trails (OpenStreetMap, ODbL) and stores them with their source and licence. It can take a few minutes because the public Overpass server is rate limited, and it is safe to re-run. Credit to these sources is shown on the map.
+This downloads the Nepal boundary (geoBoundaries, CC BY 4.0) and a curated set of trekking peaks, lakes, passes, cities, gateways and trails (OpenStreetMap, ODbL), and stores them with their source and licence. The lists of names live at the top of `packages/database/scripts/import-geo.mjs`; only coordinates, heights and geometry come from the data. Anything OpenStreetMap does not have is reported rather than invented. To re-import just some sections, set `GEO_ONLY`, e.g. `GEO_ONLY=lakes,passes pnpm db:import-geo`. It can take a few minutes because the public Overpass server is rate limited, and it is safe to re-run. Credit to these sources is shown on the map.
+
+The map's terrain is not stored in the database. The browser downloads open elevation tiles (SRTM and GMTED2010 data, via the public AWS Terrain Tiles bucket) and shades them into relief with snow caps above the snow line. This means the map needs an internet connection to show terrain, and the visitor's browser contacts that bucket directly.
 
 ## Prisma commands
 
