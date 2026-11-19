@@ -10,7 +10,14 @@ export interface Bounds {
   maxY: number;
 }
 
-const K = 1000;
+/** World units per radian of longitude. Shared with the terrain tile maths. */
+export const WORLD_SCALE = 1000;
+/**
+ * Scene units per world unit. Static geometry (outline, trails, terrain) is built once in scene
+ * space and the camera just scales and moves that scene, so panning needs no redrawing.
+ */
+export const SPACE = 8;
+const K = WORLD_SCALE;
 
 export function project(lon: number, lat: number): { x: number; y: number } {
   const x = ((lon * Math.PI) / 180) * K;

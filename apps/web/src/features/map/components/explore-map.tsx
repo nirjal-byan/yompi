@@ -5,15 +5,19 @@ import type { GeoFeature, GeoFeatureCollection } from "@yompi/shared";
 import { Button } from "@/components/ui/button";
 import { Tag } from "@/components/ui/tag";
 import { cn } from "@/lib/cn";
+import { TERRAIN_ATTRIBUTION } from "../constants";
 import { getGeoFeatures } from "../services/geo-api";
 import type { MapLayers, NepalMapEngine } from "../lib/map-engine";
 import { FeatureCard } from "./feature-card";
 import { MapSearch } from "./map-search";
 
-const DEFAULT_LAYERS: MapLayers = { peaks: true, trails: true, places: true };
+const DEFAULT_LAYERS: MapLayers = { terrain: true, peaks: true, lakes: true, passes: true, trails: true, places: true };
 
 const LAYER_CHIPS: Array<{ key: keyof MapLayers; label: string }> = [
+  { key: "terrain", label: "Terrain" },
   { key: "peaks", label: "Peaks" },
+  { key: "lakes", label: "Lakes" },
+  { key: "passes", label: "Passes" },
   { key: "trails", label: "Trails" },
   { key: "places", label: "Cities & gateways" },
 ];
@@ -172,6 +176,14 @@ export function ExploreMap() {
                   </a>
                 </span>
               ))}
+              {layers.terrain && (
+                <>
+                  {" · "}
+                  <a href={TERRAIN_ATTRIBUTION.url} target="_blank" rel="noopener noreferrer" className="underline">
+                    {TERRAIN_ATTRIBUTION.text}
+                  </a>
+                </>
+              )}
             </p>
           </>
         )}

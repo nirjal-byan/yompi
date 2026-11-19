@@ -1,9 +1,13 @@
 import { Application, Container, Graphics, Text } from "pixi.js";
 import type { GeoFeature, GeoFeatureCollection } from "@yompi/shared";
-import { type Bounds, emptyBounds, extendBounds, project } from "./projection";
+import { type Bounds, SPACE, emptyBounds, extendBounds, project } from "./projection";
+import { TerrainLayer } from "./terrain";
 
 export interface MapLayers {
+  terrain: boolean;
   peaks: boolean;
+  lakes: boolean;
+  passes: boolean;
   trails: boolean;
   places: boolean;
 }
@@ -22,17 +26,24 @@ const COLORS = {
   trail: 0xffb43e,
   peak: 0x8a6a5c,
   peakHigh: 0xffb43e,
+  lake: 0x4f9fc6,
 };
 
-const HIGH_PEAK_M = 7000;
+const HIGH_PEAK_M = 6000;
 const MAX_LABELS = 70;
+const CLICK_SLOP_PX = 5;
 /** Gateways the product calls out explicitly: their labels win collisions. */
 const PRIORITY_PLACES = new Set(["Kathmandu", "Pokhara"]);
 /** Shifts the fitted view up so the bottom-left intro card does not cover far-western Nepal. */
 const FIT_SHIFT_UP_PX = 36;
-const CLICK_SLOP_PX = 5;
+/** Cap the pixel density: retina screens look almost the same at 1.5x but cost far less GPU. */
+const MAX_PIXEL_RATIO = 1.5;
+/** Static lines are redrawn when the zoom drifts this far from the zoom they were drawn at. */
+const REBASE_MIN = 0.65;
+const REBASE_MAX = 1.55;
+const TERRAIN_UPDATE_MS = 90;
 
-type PlaceKind = "PEAK" | "CITY" | "GATEWAY";
+type PlaceKind = "PEAK" | "CITY" | "GATEWAY" | "LAKE" | "PASS";
 
 interface Marker {
   id: string;
@@ -48,6 +59,7 @@ interface Marker {
 }
 
 interface TrailLine {
+  /** Scene-space points: x, y, x, y ... */
   pts: number[];
   bounds: Bounds;
 }
@@ -71,9 +83,13 @@ const overlaps = (a: Rect, b: Rect) =>
   a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 /**
- * Framework-free PixiJS map. Everything is drawn in screen space from a camera
- * (centre + zoom), so line widths and marker sizes stay constant while zooming.
- * Pan, wheel/pinch zoom and focus changes are eased towards a target camera.
+ * Framework-free PixiJS map.
+ *
+ * Performance design:
+ *  - Terrain, the outline and trails live in a "scene" the camera scales and moves on the GPU, so
+ *    panning redraws nothing. Lines are rebuilt only when the zoom drifts (keeps widths crisp).
+ *  - Markers and labels (a few dozen) are redrawn in screen space only while the camera moves.
+ *  - The render loop sleeps when nothing changes, so an idle map costs no CPU or GPU.
  */
 export class NepalMapEngine {
   private app = new Application();
@@ -82,8 +98,15 @@ export class NepalMapEngine {
   private host!: HTMLElement;
   private callbacks!: MapCallbacks;
   private fontFamily = "monospace";
+  private resizeObserver?: ResizeObserver;
 
-  private gfx = new Graphics();
+  // Scene (camera-transformed): terrain, fade layer, static lines.
+  private scene = new Container();
+  private fog = new Graphics();
+  private vector = new Graphics();
+  private terrain!: TerrainLayer;
+  // Screen space: markers and labels.
+  private markerGfx = new Graphics();
   private labelBg = new Graphics();
   private labelLayer = new Container();
   private labels = new Map<string, Text>();
@@ -94,14 +117,23 @@ export class NepalMapEngine {
   private world: Bounds = emptyBounds();
   private w = 0;
   private h = 0;
-  private dirty = true;
   private userMoved = false;
+
+  // Render scheduling.
+  private raf = 0;
+  private lastT = 0;
+  private needsDraw = true;
+  private vectorDirty = true;
+  private fogDirty = true;
+  private vectorZoom = 0;
+  private terrainDirty = true;
+  private lastTerrainUpdate = 0;
 
   private boundary: number[][] = [];
   private trails: TrailModel[] = [];
   private markers: Marker[] = [];
   private visible: Marker[] = [];
-  private layers: MapLayers = { peaks: true, trails: true, places: true };
+  private layers: MapLayers = { terrain: true, peaks: true, lakes: true, passes: true, trails: true, places: true };
   private selectedId: string | null = null;
   private hover: Marker | null = null;
 
@@ -123,7 +155,8 @@ export class NepalMapEngine {
       background: COLORS.sea,
       antialias: true,
       autoDensity: true,
-      resolution: Math.min(window.devicePixelRatio || 1, 2),
+      autoStart: false, // we render on demand, see wake()
+      resolution: Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO),
     });
     if (this.destroyed) {
       this.app.destroy(true);
@@ -143,7 +176,15 @@ export class NepalMapEngine {
     );
     host.appendChild(canvas);
 
-    this.app.stage.addChild(this.gfx, this.labelBg, this.labelLayer);
+    // Terrain tiles are only fetched for Nepal plus a margin (~30 world units, about 1.7 degrees).
+    const margin = 30;
+    this.terrain = new TerrainLayer(
+      { minX: this.world.minX - margin, minY: this.world.minY - margin, maxX: this.world.maxX + margin, maxY: this.world.maxY + margin },
+      () => this.invalidate(),
+    );
+    this.scene.addChild(this.terrain.container, this.fog, this.vector);
+    this.app.stage.addChild(this.scene, this.markerGfx, this.labelBg, this.labelLayer);
+
     canvas.addEventListener("pointerdown", this.onPointerDown);
     canvas.addEventListener("pointermove", this.onPointerMove);
     canvas.addEventListener("pointerup", this.onPointerUp);
@@ -151,7 +192,11 @@ export class NepalMapEngine {
     canvas.addEventListener("pointerleave", this.onPointerLeave);
     canvas.addEventListener("wheel", this.onWheel, { passive: false });
     canvas.addEventListener("keydown", this.onKeyDown);
-    this.app.ticker.add((ticker) => this.tick(ticker.deltaMS));
+    this.resizeObserver = new ResizeObserver(() => {
+      this.app.resize();
+      this.invalidate();
+    });
+    this.resizeObserver.observe(host);
 
     this.measure();
     this.fitAll(true);
@@ -160,6 +205,8 @@ export class NepalMapEngine {
   destroy(): void {
     this.destroyed = true;
     if (!this.ready) return;
+    cancelAnimationFrame(this.raf);
+    this.resizeObserver?.disconnect();
     const canvas = this.app.canvas;
     canvas.removeEventListener("pointerdown", this.onPointerDown);
     canvas.removeEventListener("pointermove", this.onPointerMove);
@@ -169,6 +216,7 @@ export class NepalMapEngine {
     canvas.removeEventListener("wheel", this.onWheel);
     canvas.removeEventListener("keydown", this.onKeyDown);
     this.ready = false;
+    this.terrain.destroy();
     this.app.destroy(true, { children: true });
   }
 
@@ -178,7 +226,10 @@ export class NepalMapEngine {
     this.layers = layers;
     const selected = this.findById(this.selectedId);
     if (selected && !this.isFeatureLayerVisible(selected)) this.select(null);
-    this.dirty = true;
+    this.vectorDirty = true;
+    this.fogDirty = true;
+    this.terrainDirty = true;
+    this.invalidate();
   }
 
   zoomBy(factor: number): void {
@@ -191,7 +242,7 @@ export class NepalMapEngine {
     this.target.y = (this.world.minY + this.world.maxY) / 2 + FIT_SHIFT_UP_PX / this.fitZoom;
     this.target.z = this.fitZoom;
     if (snap) this.cam = { ...this.target };
-    this.dirty = true;
+    this.invalidate();
   }
 
   /** Selects a place or trail by id (null clears) and eases the camera towards it. */
@@ -204,7 +255,8 @@ export class NepalMapEngine {
       else this.flyToPoint(found.x, found.y, Math.max(this.target.z, this.fitZoom * 2.5));
     }
     this.callbacks.onSelect(found ? found.feature : null);
-    this.dirty = true;
+    this.vectorDirty = true; // a selected trail is highlighted in the static lines
+    this.invalidate();
   }
 
   /** Zooms to the combined extent of all trails whose name passes `match`. */
@@ -236,7 +288,7 @@ export class NepalMapEngine {
           const flat: number[] = [];
           for (const [lon, lat] of polygon[0]) {
             const p = project(lon, lat);
-            flat.push(p.x, p.y);
+            flat.push(p.x * SPACE, p.y * SPACE);
             extendBounds(bounds, p.x, p.y);
           }
           this.boundary.push(flat);
@@ -249,7 +301,7 @@ export class NepalMapEngine {
           const lineBounds = emptyBounds();
           for (const [lon, lat] of line) {
             const p = project(lon, lat);
-            pts.push(p.x, p.y);
+            pts.push(p.x * SPACE, p.y * SPACE);
             extendBounds(lineBounds, p.x, p.y);
             extendBounds(trailBounds, p.x, p.y);
           }
@@ -268,7 +320,7 @@ export class NepalMapEngine {
           elevationM: elevationM ?? 0,
           x: p.x,
           y: p.y,
-          r: kind === "PEAK" ? (high ? 8 : 5) : kind === "CITY" ? 6 : 4.5,
+          r: kind === "PEAK" ? (high ? 9 : 6.5) : kind === "CITY" ? 6 : kind === "LAKE" ? 6 : 5,
           sx: 0,
           sy: 0,
         });
@@ -287,7 +339,12 @@ export class NepalMapEngine {
 
   private isFeatureLayerVisible(item: Marker | TrailModel): boolean {
     if ("lines" in item) return this.layers.trails;
-    return item.kind === "PEAK" ? this.layers.peaks : this.layers.places;
+    switch (item.kind) {
+      case "PEAK": return this.layers.peaks;
+      case "LAKE": return this.layers.lakes;
+      case "PASS": return this.layers.passes;
+      default: return this.layers.places;
+    }
   }
 
   // ---------------------------------------------------------------- camera
@@ -300,7 +357,8 @@ export class NepalMapEngine {
     this.fitZoom = Math.max(1e-3, Math.min((this.w - 96) / bw, (this.h - 96) / bh));
     if (!this.userMoved) this.fitAll(true);
     this.clampTarget();
-    this.dirty = true;
+    this.terrainDirty = true;
+    this.needsDraw = true;
   }
 
   private clampTarget(): void {
@@ -319,6 +377,7 @@ export class NepalMapEngine {
     t.x = worldX - (sx - this.w / 2) / t.z;
     t.y = worldY - (sy - this.h / 2) / t.z;
     this.clampTarget();
+    this.invalidate();
   }
 
   private flyToPoint(x: number, y: number, zoom: number): void {
@@ -326,6 +385,7 @@ export class NepalMapEngine {
     this.target.y = y;
     this.target.z = zoom;
     this.clampTarget();
+    this.invalidate();
   }
 
   private flyToBounds(b: Bounds): void {
@@ -335,17 +395,38 @@ export class NepalMapEngine {
     this.flyToPoint((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zoom);
   }
 
-  private tick(dt: number): void {
+  // ---------------------------------------------------------------- render loop (on demand)
+
+  /** Ask for a redraw. Starts the loop if it was asleep. */
+  private invalidate(): void {
+    this.needsDraw = true;
+    if (this.raf || !this.ready) return;
+    this.lastT = performance.now();
+    this.raf = requestAnimationFrame(this.frame);
+  }
+
+  private frame = (t: number): void => {
+    this.raf = 0;
+    if (!this.ready) return;
+    const dt = clamp(t - this.lastT, 1, 50);
+    this.lastT = t;
+    if (this.tick(dt)) this.raf = requestAnimationFrame(this.frame);
+  };
+
+  /** Advances the camera and redraws what changed. Returns true while more frames are needed. */
+  private tick(dt: number): boolean {
     if (this.w !== this.app.screen.width || this.h !== this.app.screen.height) this.measure();
 
     // Momentum after a drag is released.
     const d = this.drag;
+    let momentum = false;
     if (!d.active && Math.abs(d.vx) + Math.abs(d.vy) > 0.01) {
       this.target.x -= (d.vx * dt) / this.cam.z;
       this.target.y -= (d.vy * dt) / this.cam.z;
       d.vx *= Math.exp(-dt / 260);
       d.vy *= Math.exp(-dt / 260);
       this.clampTarget();
+      momentum = true;
     } else if (!d.active) {
       d.vx = 0;
       d.vy = 0;
@@ -356,126 +437,191 @@ export class NepalMapEngine {
     const c = this.cam;
     const t = this.target;
     const dz = Math.log(t.z) - Math.log(c.z);
-    const moving = Math.abs(t.x - c.x) * c.z > 0.05 || Math.abs(t.y - c.y) * c.z > 0.05 || Math.abs(dz) > 5e-4;
-    if (moving) {
+    const easing = Math.abs(t.x - c.x) * c.z > 0.05 || Math.abs(t.y - c.y) * c.z > 0.05 || Math.abs(dz) > 5e-4;
+    let camChanged = false;
+    if (easing) {
       c.x += (t.x - c.x) * k;
       c.y += (t.y - c.y) * k;
       c.z = Math.exp(Math.log(c.z) + dz * k);
-      this.dirty = true;
+      camChanged = true;
     } else if (c.x !== t.x || c.y !== t.y || c.z !== t.z) {
       c.x = t.x;
       c.y = t.y;
       c.z = t.z;
-      this.dirty = true;
+      camChanged = true;
     }
+    const moving = easing || momentum || d.active;
 
-    if (this.dirty) {
-      this.dirty = false;
-      this.draw();
+    let more = moving;
+    if (camChanged || this.needsDraw || this.vectorDirty || this.terrainDirty) {
+      this.needsDraw = false;
+      this.applyCamera();
+
+      // Static lines: rebuild only when the zoom has drifted (or on settle, for crisp widths).
+      const ratio = this.vectorZoom > 0 ? c.z / this.vectorZoom : 0;
+      if (this.vectorDirty || ratio < REBASE_MIN || ratio > REBASE_MAX || (!easing && Math.abs(ratio - 1) > 0.06)) {
+        this.drawVector();
+        this.vectorDirty = false;
+      }
+      if (this.fogDirty) {
+        this.drawFog();
+        this.fogDirty = false;
+      }
+
+      // Terrain requests are throttled while moving, and always run once the camera settles.
+      if (camChanged || this.terrainDirty) {
+        const now = performance.now();
+        if (!easing || now - this.lastTerrainUpdate > TERRAIN_UPDATE_MS) {
+          this.terrain.update(c, this.w, this.h, this.layers.terrain);
+          this.lastTerrainUpdate = now;
+          this.terrainDirty = false;
+        } else {
+          this.terrainDirty = true;
+          more = true;
+        }
+      }
+
+      this.drawMarkers();
+      this.app.render();
     }
+    return more || this.needsDraw;
+  }
+
+  private applyCamera(): void {
+    this.scene.pivot.set(this.cam.x * SPACE, this.cam.y * SPACE);
+    this.scene.position.set(this.w / 2, this.h / 2);
+    this.scene.scale.set(this.cam.z / SPACE);
   }
 
   // ---------------------------------------------------------------- drawing
 
-  private draw(): void {
-    const { w, h } = this;
-    const { x: cx, y: cy, z } = this.cam;
-    const toX = (x: number) => (x - cx) * z + w / 2;
-    const toY = (y: number) => (y - cy) * z + h / 2;
-    const zr = z / this.fitZoom;
-    const g = this.gfx;
+  /** Outline, graticule and trails, in scene space. Widths are set for the zoom they are drawn at. */
+  private drawVector(): void {
+    const g = this.vector;
     g.clear();
+    this.vectorZoom = this.cam.z;
+    const px = SPACE / this.cam.z; // one screen pixel, in scene units
+    const terrainOn = this.layers.terrain;
 
-    // Graticule (lines every N degrees) so empty space still reads as a map.
-    const step = zr < 4 ? 1 : zr < 12 ? 0.5 : 0.1;
-    for (let lon = 70; lon <= 100; lon += step) {
-      const sx = toX(project(lon, 0).x);
-      if (sx >= 0 && sx <= w) g.moveTo(sx, 0).lineTo(sx, h);
-    }
-    for (let lat = 20; lat <= 40; lat += step) {
-      const sy = toY(project(0, lat).y);
-      if (sy >= 0 && sy <= h) g.moveTo(0, sy).lineTo(w, sy);
-    }
-    g.stroke({ width: 1, color: COLORS.grid });
-
-    // Country outline.
-    for (const ring of this.boundary) {
-      const pts: number[] = [];
-      let lastX = Infinity;
-      let lastY = Infinity;
-      for (let i = 0; i < ring.length; i += 2) {
-        const sx = toX(ring[i]);
-        const sy = toY(ring[i + 1]);
-        if (Math.abs(sx - lastX) + Math.abs(sy - lastY) < 1.2) continue;
-        pts.push(sx, sy);
-        lastX = sx;
-        lastY = sy;
+    if (!terrainOn) {
+      // Graticule (lines every N degrees) so empty space still reads as a map.
+      const zr = this.cam.z / this.fitZoom;
+      const step = zr < 4 ? 1 : zr < 12 ? 0.5 : 0.1;
+      const west = project(76, 0).x * SPACE;
+      const east = project(93, 0).x * SPACE;
+      const south = project(0, 22).y * SPACE;
+      const north = project(0, 33).y * SPACE;
+      for (let lon = 76; lon <= 93; lon += step) {
+        const x = project(lon, 0).x * SPACE;
+        g.moveTo(x, north).lineTo(x, south);
       }
-      g.poly(pts, true).fill({ color: COLORS.land }).stroke({ width: 1.75, color: COLORS.ink, join: "round" });
+      for (let lat = 22; lat <= 33; lat += step) {
+        const y = project(0, lat).y * SPACE;
+        g.moveTo(west, y).lineTo(east, y);
+      }
+      g.stroke({ width: px, color: COLORS.grid });
     }
 
-    if (this.layers.trails) this.drawTrails(g, toX, toY);
-    this.drawMarkers(g, toX, toY, zr);
-    this.drawLabels(zr);
+    for (const ring of this.boundary) {
+      const pts = this.decimate(ring, 1.2 * px);
+      const shape = g.poly(pts, true);
+      if (!terrainOn) shape.fill({ color: COLORS.land });
+      shape.stroke({ width: (terrainOn ? 2 : 1.75) * px, color: COLORS.ink, join: "round" });
+    }
+
+    if (this.layers.trails) this.drawTrails(g, px);
   }
 
-  private drawTrails(g: Graphics, toX: (x: number) => number, toY: (y: number) => number): void {
-    const { w, h } = this;
+  private decimate(flat: number[], minDistance: number): number[] {
+    const out: number[] = [];
+    let lastX = Infinity;
+    let lastY = Infinity;
+    for (let i = 0; i < flat.length; i += 2) {
+      if (Math.abs(flat[i] - lastX) + Math.abs(flat[i + 1] - lastY) < minDistance && i < flat.length - 2) continue;
+      out.push(flat[i], flat[i + 1]);
+      lastX = flat[i];
+      lastY = flat[i + 1];
+    }
+    return out;
+  }
+
+  private drawTrails(g: Graphics, px: number): void {
     const path = (only?: (t: TrailModel) => boolean) => {
       for (const trail of this.trails) {
         if (only && !only(trail)) continue;
         for (const line of trail.lines) {
-          const b = line.bounds;
-          if (toX(b.maxX) < 0 || toX(b.minX) > w || toY(b.maxY) < 0 || toY(b.minY) > h) continue;
-          let lastX = toX(line.pts[0]);
-          let lastY = toY(line.pts[1]);
-          g.moveTo(lastX, lastY);
-          for (let i = 2; i < line.pts.length; i += 2) {
-            const sx = toX(line.pts[i]);
-            const sy = toY(line.pts[i + 1]);
-            if (Math.abs(sx - lastX) + Math.abs(sy - lastY) < 1.5 && i < line.pts.length - 2) continue;
-            g.lineTo(sx, sy);
-            lastX = sx;
-            lastY = sy;
-          }
+          const pts = this.decimate(line.pts, 1.5 * px);
+          g.moveTo(pts[0], pts[1]);
+          for (let i = 2; i < pts.length; i += 2) g.lineTo(pts[i], pts[i + 1]);
         }
       }
     };
     const isSelected = (t: TrailModel) => t.id === this.selectedId;
     path();
-    g.stroke({ width: 5, color: COLORS.ink, cap: "round", join: "round" });
+    g.stroke({ width: 5 * px, color: COLORS.ink, cap: "round", join: "round" });
     path();
-    g.stroke({ width: 3, color: COLORS.trail, cap: "round", join: "round" });
+    g.stroke({ width: 3 * px, color: COLORS.trail, cap: "round", join: "round" });
     if (this.selectedId && this.trails.some(isSelected)) {
       path(isSelected);
-      g.stroke({ width: 9, color: COLORS.accent, alpha: 0.35, cap: "round", join: "round" });
+      g.stroke({ width: 9 * px, color: COLORS.accent, alpha: 0.35, cap: "round", join: "round" });
       path(isSelected);
-      g.stroke({ width: 3, color: COLORS.trail, cap: "round", join: "round" });
+      g.stroke({ width: 3 * px, color: COLORS.trail, cap: "round", join: "round" });
     }
   }
 
-  private drawMarkers(g: Graphics, toX: (x: number) => number, toY: (y: number) => number, zr: number): void {
+  /** Outside Nepal the terrain is faded so the country stands out. Built once: it never changes with the camera. */
+  private drawFog(): void {
+    const fog = this.fog;
+    fog.clear();
+    fog.visible = this.layers.terrain;
+    if (!this.layers.terrain || this.boundary.length === 0) return;
+
+    // The cut-out must lie fully inside the outer shape, so the rectangle is generously larger than Nepal.
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const ring of this.boundary) {
+      for (let i = 0; i < ring.length; i += 2) {
+        if (ring[i] < minX) minX = ring[i];
+        if (ring[i] > maxX) maxX = ring[i];
+        if (ring[i + 1] < minY) minY = ring[i + 1];
+        if (ring[i + 1] > maxY) maxY = ring[i + 1];
+      }
+    }
+    const pad = Math.max(maxX - minX, maxY - minY) * 2;
+    fog.rect(minX - pad, minY - pad, maxX - minX + pad * 2, maxY - minY + pad * 2).fill({ color: COLORS.sea, alpha: 0.6 });
+    for (const ring of this.boundary) fog.poly(ring, true).cut();
+  }
+
+  /** Markers and labels, in screen space (a few dozen items). */
+  private drawMarkers(): void {
     const { w, h } = this;
-    const minPeak = zr < 1.6 ? 7500 : zr < 3 ? 7000 : zr < 5 ? 6500 : zr < 9 ? 6000 : 0;
+    const { x: cx, y: cy, z } = this.cam;
+    const zr = z / this.fitZoom;
+    const g = this.markerGfx;
+    g.clear();
+
     this.visible = [];
     for (const m of this.markers) {
       const selected = m.id === this.selectedId;
       if (m.kind === "PEAK") {
-        if (!this.layers.peaks || (m.elevationM < minPeak && !selected)) continue;
+        if (!this.layers.peaks) continue;
+      } else if (m.kind === "LAKE") {
+        if (!this.layers.lakes) continue;
+      } else if (m.kind === "PASS") {
+        if (!this.layers.passes || (zr < 1.8 && !selected)) continue;
       } else {
         if (!this.layers.places) continue;
         if (m.kind === "GATEWAY" && zr < 2.2 && !selected) continue;
       }
-      const sx = toX(m.x);
-      const sy = toY(m.y);
+      const sx = (m.x - cx) * z + w / 2;
+      const sy = (m.y - cy) * z + h / 2;
       if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
       m.sx = sx;
       m.sy = sy;
       this.visible.push(m);
     }
 
-    // Peaks, then gateways, then cities on top; hovered/selected last.
-    const order = (m: Marker) => (m.kind === "PEAK" ? 0 : m.kind === "GATEWAY" ? 1 : 2);
+    // Peaks, then lakes and passes, then gateways, then cities on top; hovered/selected last.
+    const order = (m: Marker) => (m.kind === "PEAK" ? 0 : m.kind === "LAKE" || m.kind === "PASS" ? 1 : m.kind === "GATEWAY" ? 2 : 3);
     const ordered = [...this.visible].sort((a, b) => order(a) - order(b));
     for (const m of ordered) this.drawMarker(g, m, m === this.hover ? 1.3 : 1);
     const selected = this.visible.find((m) => m.id === this.selectedId);
@@ -483,15 +629,25 @@ export class NepalMapEngine {
       g.circle(selected.sx, selected.sy, selected.r + 9).stroke({ width: 2.5, color: COLORS.accent });
       this.drawMarker(g, selected, 1.15);
     }
+    this.drawLabels(zr);
   }
 
   private drawMarker(g: Graphics, m: Marker, scale: number): void {
     const s = m.r * scale;
+    const stroke = { width: 1.5, color: COLORS.ink, join: "round" as const };
     if (m.kind === "PEAK") {
       const high = m.elevationM >= HIGH_PEAK_M;
       g.poly([m.sx, m.sy - s, m.sx + s * 1.05, m.sy + s * 0.75, m.sx - s * 1.05, m.sy + s * 0.75], true)
         .fill({ color: high ? COLORS.peakHigh : COLORS.peak })
-        .stroke({ width: 1.5, color: COLORS.ink, join: "round" });
+        .stroke(stroke);
+    } else if (m.kind === "LAKE") {
+      g.circle(m.sx, m.sy, s).fill({ color: COLORS.lake }).stroke(stroke);
+      g.circle(m.sx - s * 0.3, m.sy - s * 0.3, s * 0.3).fill({ color: COLORS.paper, alpha: 0.85 });
+    } else if (m.kind === "PASS") {
+      // Inverted triangle: a dip between two peaks.
+      g.poly([m.sx - s, m.sy - s * 0.7, m.sx + s, m.sy - s * 0.7, m.sx, m.sy + s * 0.9], true)
+        .fill({ color: COLORS.paper })
+        .stroke(stroke);
     } else {
       g.poly([m.sx, m.sy - s, m.sx + s, m.sy, m.sx, m.sy + s, m.sx - s, m.sy], true)
         .fill({ color: m.kind === "CITY" ? COLORS.ink : COLORS.accent })
@@ -516,7 +672,9 @@ export class NepalMapEngine {
 
   private labelText(m: Marker): string {
     if (m.kind === "CITY") return m.name.toUpperCase();
-    if (m.kind === "PEAK" && m.elevationM >= HIGH_PEAK_M) return `${m.name} ${m.elevationM.toLocaleString("en-US")} m`;
+    if ((m.kind === "PEAK" || m.kind === "LAKE" || m.kind === "PASS") && m.elevationM > 0) {
+      return `${m.name} ${m.elevationM.toLocaleString("en-US")} m`;
+    }
     return m.name;
   }
 
@@ -525,15 +683,22 @@ export class NepalMapEngine {
     bg.clear();
     for (const text of this.labels.values()) text.visible = false;
 
-    // Importance order: selection, hover, cities, high peaks, gateways, the rest.
+    // Importance order: selection, hover, key cities, other cities, high peaks, lakes, the rest.
     const rank = (m: Marker) =>
-      m.id === this.selectedId ? 0 : m === this.hover ? 1 : PRIORITY_PLACES.has(m.name) ? 2 : m.kind === "CITY" ? 3 : m.kind === "PEAK" && m.elevationM >= HIGH_PEAK_M ? 4 : m.kind === "GATEWAY" ? 5 : 6;
+      m.id === this.selectedId ? 0
+      : m === this.hover ? 1
+      : PRIORITY_PLACES.has(m.name) ? 2
+      : m.kind === "CITY" ? 3
+      : m.kind === "PEAK" && m.elevationM >= HIGH_PEAK_M ? 4
+      : m.kind === "LAKE" ? 5
+      : m.kind === "GATEWAY" || m.kind === "PASS" ? 6
+      : 7;
     const candidates = [...this.visible].sort((a, b) => rank(a) - rank(b) || b.elevationM - a.elevationM);
     const placed: Rect[] = [];
     let count = 0;
     for (const m of candidates) {
       if (count >= MAX_LABELS) break;
-      if (m.kind === "PEAK" && m.elevationM < HIGH_PEAK_M && zr < 5 && m.id !== this.selectedId && m !== this.hover) continue;
+      if (m.kind === "PEAK" && m.elevationM < HIGH_PEAK_M && zr < 2.5 && m.id !== this.selectedId && m !== this.hover) continue;
       const text = this.labelFor(m);
       const content = this.labelText(m);
       if (text.text !== content) text.text = content;
@@ -622,7 +787,8 @@ export class NepalMapEngine {
       d.vx = d.vx * 0.6 + (dx / dtMs) * 0.4;
       d.vy = d.vy * 0.6 + (dy / dtMs) * 0.4;
       this.hover = null;
-      this.dirty = true;
+      this.terrainDirty = true;
+      this.invalidate();
       this.setCursor();
     }
     d.lastX = e.offsetX;
@@ -646,12 +812,13 @@ export class NepalMapEngine {
     this.drag.active = false;
     this.pinchDistance = 0;
     this.updateHover(e.offsetX, e.offsetY);
+    this.invalidate(); // let momentum run
   };
 
   private onPointerLeave = (): void => {
     if (this.hover) {
       this.hover = null;
-      this.dirty = true;
+      this.invalidate();
     }
   };
 
@@ -659,7 +826,7 @@ export class NepalMapEngine {
     const hit = this.pick(sx, sy);
     if (hit !== this.hover) {
       this.hover = hit;
-      this.dirty = true;
+      this.invalidate();
     }
     this.setCursor();
   }
@@ -683,6 +850,7 @@ export class NepalMapEngine {
       this.target.x += moves[e.key][0];
       this.target.y += moves[e.key][1];
       this.clampTarget();
+      this.invalidate();
     } else if (e.key === "+" || e.key === "=") this.zoomBy(1.5);
     else if (e.key === "-") this.zoomBy(1 / 1.5);
     else if (e.key === "0") {
