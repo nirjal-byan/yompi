@@ -146,3 +146,43 @@ model Session {
 
   @@index([userId])
 }
+
+// ---- Real-world geodata (drives the Nepal map) ----
+
+enum GeoFeatureKind {
+  COUNTRY_BOUNDARY
+  PEAK
+  CITY
+  GATEWAY
+  TRAIL
+}
+
+// Where a dataset came from. Attribution must be shown wherever the data is displayed.
+model DataSource {
+  id          String       @id @default(uuid())
+  key         String       @unique
+  name        String
+  url         String
+  license     String
+  attribution String
+  features    GeoFeature[]
+}
+
+// One row per real-world feature, in WGS84 lon/lat. Visual map styling lives in the frontend.
+model GeoFeature {
+  id         String                              @id @default(uuid())
+  kind       GeoFeatureKind
+  name       String
+  nameLocal  String?
+  elevationM Int?
+  properties Json?
+  geometry   Unsupported("geometry(Geometry, 4326)")
+  sourceId   String
+  source     DataSource                          @relation(fields: [sourceId], references: [id])
+  sourceRef  String
+  fetchedAt  DateTime                            @default(now())
+
+  @@unique([sourceId, sourceRef])
+  @@index([kind])
+  @@index([geometry], type: Gist)
+}
