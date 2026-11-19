@@ -6,6 +6,7 @@ import { AppService } from './app.service.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { MailModule } from './infrastructure/mail/mail.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { GeoModule } from './modules/geo/geo.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 @Module({
@@ -20,6 +21,7 @@ import { HealthModule } from './modules/health/health.module.js';
     DatabaseModule,
     MailModule,
     AuthModule,
+    GeoModule,
     HealthModule,
   ],
   controllers: [AppController],
