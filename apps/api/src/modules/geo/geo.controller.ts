@@ -8,7 +8,7 @@ export class GeoController {
 
   /** GET /geo/features?kind=PEAK,CITY  (omit kind for everything) */
   @Get('features')
-  @Header('Cache-Control', 'public, max-age=3600')
+  @Header('Cache-Control', 'no-cache')
   async features(@Query('kind') kind?: string) {
     const parsed = GeoKindQuerySchema.safeParse(kind);
     if (!parsed.success) {
@@ -19,7 +19,7 @@ export class GeoController {
 
   /** Data sources with the licence and attribution text that must be shown with the map. */
   @Get('sources')
-  @Header('Cache-Control', 'public, max-age=3600')
+  @Header('Cache-Control', 'no-cache')
   sources() {
     return this.geo.listSources();
   }
