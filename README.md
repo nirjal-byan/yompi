@@ -107,6 +107,16 @@ pnpm db:migrate
 
 `docker compose up -d` also starts **Mailpit**, a local mail catcher. Sign-in emails are never delivered to real inboxes in development. Open http://localhost:8025 to read them. To use a real SMTP server, set `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD` and `MAIL_FROM` in `.env`. Also set `WEB_URL` and `API_PUBLIC_URL` to your real URLs, because the link in the email points at the API.
 
+## Load the map data (once)
+
+The Explore map draws real geography from the database. After the migrations are applied, import it once:
+
+```powershell
+pnpm db:import-geo
+```
+
+This downloads the Nepal boundary (geoBoundaries, CC BY 4.0) and peaks, cities, gateways and trails (OpenStreetMap, ODbL) and stores them with their source and licence. It can take a few minutes because the public Overpass server is rate limited, and it is safe to re-run. Credit to these sources is shown on the map.
+
 ## Prisma commands
 
 Generate Prisma client:
