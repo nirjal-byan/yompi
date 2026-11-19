@@ -6,6 +6,8 @@ export const GeoFeatureKindSchema = z.enum([
   "CITY",
   "GATEWAY",
   "TRAIL",
+  "LAKE",
+  "PASS",
 ]);
 export type GeoFeatureKind = z.infer<typeof GeoFeatureKindSchema>;
 
