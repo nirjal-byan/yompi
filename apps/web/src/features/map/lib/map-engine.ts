@@ -1,0 +1,696 @@
+import { Application, Container, Graphics, Text } from "pixi.js";
+import type { GeoFeature, GeoFeatureCollection } from "@yompi/shared";
+import { type Bounds, emptyBounds, extendBounds, project } from "./projection";
+
+export interface MapLayers {
+  peaks: boolean;
+  trails: boolean;
+  places: boolean;
+}
+
+export interface MapCallbacks {
+  onSelect(feature: GeoFeature | null): void;
+}
+
+const COLORS = {
+  sea: 0xf1ebdc,
+  land: 0xd8e4bf,
+  grid: 0xdcd3bd,
+  ink: 0x3b2a26,
+  paper: 0xfffdf8,
+  accent: 0x2f5d3a,
+  trail: 0xffb43e,
+  peak: 0x8a6a5c,
+  peakHigh: 0xffb43e,
+};
+
+const HIGH_PEAK_M = 7000;
+const MAX_LABELS = 70;
+/** Gateways the product calls out explicitly: their labels win collisions. */
+const PRIORITY_PLACES = new Set(["Kathmandu", "Pokhara"]);
+/** Shifts the fitted view up so the bottom-left intro card does not cover far-western Nepal. */
+const FIT_SHIFT_UP_PX = 36;
+const CLICK_SLOP_PX = 5;
+
+type PlaceKind = "PEAK" | "CITY" | "GATEWAY";
+
+interface Marker {
+  id: string;
+  feature: GeoFeature;
+  kind: PlaceKind;
+  name: string;
+  elevationM: number;
+  x: number;
+  y: number;
+  r: number;
+  sx: number;
+  sy: number;
+}
+
+interface TrailLine {
+  pts: number[];
+  bounds: Bounds;
+}
+
+interface TrailModel {
+  id: string;
+  feature: GeoFeature;
+  lines: TrailLine[];
+  bounds: Bounds;
+}
+
+interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const overlaps = (a: Rect, b: Rect) =>
+  a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+/**
+ * Framework-free PixiJS map. Everything is drawn in screen space from a camera
+ * (centre + zoom), so line widths and marker sizes stay constant while zooming.
+ * Pan, wheel/pinch zoom and focus changes are eased towards a target camera.
+ */
+export class NepalMapEngine {
+  private app = new Application();
+  private ready = false;
+  private destroyed = false;
+  private host!: HTMLElement;
+  private callbacks!: MapCallbacks;
+  private fontFamily = "monospace";
+
+  private gfx = new Graphics();
+  private labelBg = new Graphics();
+  private labelLayer = new Container();
+  private labels = new Map<string, Text>();
+
+  private cam = { x: 0, y: 0, z: 1 };
+  private target = { x: 0, y: 0, z: 1 };
+  private fitZoom = 1;
+  private world: Bounds = emptyBounds();
+  private w = 0;
+  private h = 0;
+  private dirty = true;
+  private userMoved = false;
+
+  private boundary: number[][] = [];
+  private trails: TrailModel[] = [];
+  private markers: Marker[] = [];
+  private visible: Marker[] = [];
+  private layers: MapLayers = { peaks: true, trails: true, places: true };
+  private selectedId: string | null = null;
+  private hover: Marker | null = null;
+
+  private pointers = new Map<number, { x: number; y: number }>();
+  private drag = { active: false, moved: 0, lastX: 0, lastY: 0, lastT: 0, vx: 0, vy: 0 };
+  private pinchDistance = 0;
+
+  async init(host: HTMLElement, data: GeoFeatureCollection, callbacks: MapCallbacks): Promise<void> {
+    this.host = host;
+    this.callbacks = callbacks;
+    this.parse(data);
+
+    const mono = getComputedStyle(document.documentElement).getPropertyValue("--font-geist-mono").trim();
+    if (mono) this.fontFamily = `${mono}, monospace`;
+    await document.fonts?.ready;
+
+    await this.app.init({
+      resizeTo: host,
+      background: COLORS.sea,
+      antialias: true,
+      autoDensity: true,
+      resolution: Math.min(window.devicePixelRatio || 1, 2),
+    });
+    if (this.destroyed) {
+      this.app.destroy(true);
+      return;
+    }
+    this.ready = true;
+
+    const canvas = this.app.canvas;
+    canvas.style.touchAction = "none";
+    canvas.style.display = "block";
+    canvas.style.outline = "none";
+    canvas.tabIndex = 0;
+    canvas.setAttribute("role", "application");
+    canvas.setAttribute(
+      "aria-label",
+      "Interactive map of Nepal. Drag to pan, scroll or use plus and minus to zoom, arrow keys to move.",
+    );
+    host.appendChild(canvas);
+
+    this.app.stage.addChild(this.gfx, this.labelBg, this.labelLayer);
+    canvas.addEventListener("pointerdown", this.onPointerDown);
+    canvas.addEventListener("pointermove", this.onPointerMove);
+    canvas.addEventListener("pointerup", this.onPointerUp);
+    canvas.addEventListener("pointercancel", this.onPointerUp);
+    canvas.addEventListener("pointerleave", this.onPointerLeave);
+    canvas.addEventListener("wheel", this.onWheel, { passive: false });
+    canvas.addEventListener("keydown", this.onKeyDown);
+    this.app.ticker.add((ticker) => this.tick(ticker.deltaMS));
+
+    this.measure();
+    this.fitAll(true);
+  }
+
+  destroy(): void {
+    this.destroyed = true;
+    if (!this.ready) return;
+    const canvas = this.app.canvas;
+    canvas.removeEventListener("pointerdown", this.onPointerDown);
+    canvas.removeEventListener("pointermove", this.onPointerMove);
+    canvas.removeEventListener("pointerup", this.onPointerUp);
+    canvas.removeEventListener("pointercancel", this.onPointerUp);
+    canvas.removeEventListener("pointerleave", this.onPointerLeave);
+    canvas.removeEventListener("wheel", this.onWheel);
+    canvas.removeEventListener("keydown", this.onKeyDown);
+    this.ready = false;
+    this.app.destroy(true, { children: true });
+  }
+
+  // ---------------------------------------------------------------- public controls
+
+  setLayers(layers: MapLayers): void {
+    this.layers = layers;
+    const selected = this.findById(this.selectedId);
+    if (selected && !this.isFeatureLayerVisible(selected)) this.select(null);
+    this.dirty = true;
+  }
+
+  zoomBy(factor: number): void {
+    this.userMoved = true;
+    this.zoomAt(this.w / 2, this.h / 2, factor);
+  }
+
+  fitAll(snap = false): void {
+    this.target.x = (this.world.minX + this.world.maxX) / 2;
+    this.target.y = (this.world.minY + this.world.maxY) / 2 + FIT_SHIFT_UP_PX / this.fitZoom;
+    this.target.z = this.fitZoom;
+    if (snap) this.cam = { ...this.target };
+    this.dirty = true;
+  }
+
+  /** Selects a place or trail by id (null clears) and eases the camera towards it. */
+  select(id: string | null, focus = true): void {
+    this.selectedId = id;
+    const found = this.findById(id);
+    if (found && focus) {
+      this.userMoved = true;
+      if ("lines" in found) this.flyToBounds(found.bounds);
+      else this.flyToPoint(found.x, found.y, Math.max(this.target.z, this.fitZoom * 2.5));
+    }
+    this.callbacks.onSelect(found ? found.feature : null);
+    this.dirty = true;
+  }
+
+  /** Zooms to the combined extent of all trails whose name passes `match`. */
+  focusTrails(match: (name: string) => boolean): void {
+    const bounds = emptyBounds();
+    for (const trail of this.trails) {
+      if (!match(trail.feature.properties.name)) continue;
+      extendBounds(bounds, trail.bounds.minX, trail.bounds.minY);
+      extendBounds(bounds, trail.bounds.maxX, trail.bounds.maxY);
+    }
+    if (bounds.minX === Infinity) return;
+    this.userMoved = true;
+    this.flyToBounds(bounds);
+  }
+
+  // ---------------------------------------------------------------- data
+
+  private parse(data: GeoFeatureCollection): void {
+    const bounds = emptyBounds();
+    for (const feature of data.features) {
+      const { kind, name, elevationM } = feature.properties;
+      const geometry = feature.geometry;
+      if (kind === "COUNTRY_BOUNDARY") {
+        const polygons =
+          geometry.type === "Polygon"
+            ? [geometry.coordinates as number[][][]]
+            : (geometry.coordinates as number[][][][]);
+        for (const polygon of polygons) {
+          const flat: number[] = [];
+          for (const [lon, lat] of polygon[0]) {
+            const p = project(lon, lat);
+            flat.push(p.x, p.y);
+            extendBounds(bounds, p.x, p.y);
+          }
+          this.boundary.push(flat);
+        }
+      } else if (kind === "TRAIL") {
+        const lines: TrailLine[] = [];
+        const trailBounds = emptyBounds();
+        for (const line of geometry.coordinates as number[][][]) {
+          const pts: number[] = [];
+          const lineBounds = emptyBounds();
+          for (const [lon, lat] of line) {
+            const p = project(lon, lat);
+            pts.push(p.x, p.y);
+            extendBounds(lineBounds, p.x, p.y);
+            extendBounds(trailBounds, p.x, p.y);
+          }
+          lines.push({ pts, bounds: lineBounds });
+        }
+        this.trails.push({ id: feature.id, feature, lines, bounds: trailBounds });
+      } else {
+        const [lon, lat] = geometry.coordinates as number[];
+        const p = project(lon, lat);
+        const high = kind === "PEAK" && (elevationM ?? 0) >= HIGH_PEAK_M;
+        this.markers.push({
+          id: feature.id,
+          feature,
+          kind: kind as PlaceKind,
+          name,
+          elevationM: elevationM ?? 0,
+          x: p.x,
+          y: p.y,
+          r: kind === "PEAK" ? (high ? 8 : 5) : kind === "CITY" ? 6 : 4.5,
+          sx: 0,
+          sy: 0,
+        });
+        if (this.boundary.length === 0) extendBounds(bounds, p.x, p.y);
+      }
+    }
+    this.world = bounds;
+    // Draw low peaks first so high ones sit on top.
+    this.markers.sort((a, b) => a.elevationM - b.elevationM);
+  }
+
+  private findById(id: string | null): Marker | TrailModel | undefined {
+    if (!id) return undefined;
+    return this.markers.find((m) => m.id === id) ?? this.trails.find((t) => t.id === id);
+  }
+
+  private isFeatureLayerVisible(item: Marker | TrailModel): boolean {
+    if ("lines" in item) return this.layers.trails;
+    return item.kind === "PEAK" ? this.layers.peaks : this.layers.places;
+  }
+
+  // ---------------------------------------------------------------- camera
+
+  private measure(): void {
+    this.w = this.app.screen.width;
+    this.h = this.app.screen.height;
+    const bw = this.world.maxX - this.world.minX || 1;
+    const bh = this.world.maxY - this.world.minY || 1;
+    this.fitZoom = Math.max(1e-3, Math.min((this.w - 96) / bw, (this.h - 96) / bh));
+    if (!this.userMoved) this.fitAll(true);
+    this.clampTarget();
+    this.dirty = true;
+  }
+
+  private clampTarget(): void {
+    const padX = (this.world.maxX - this.world.minX) * 0.15;
+    const padY = (this.world.maxY - this.world.minY) * 0.5;
+    this.target.z = clamp(this.target.z, this.fitZoom * 0.7, this.fitZoom * 90);
+    this.target.x = clamp(this.target.x, this.world.minX - padX, this.world.maxX + padX);
+    this.target.y = clamp(this.target.y, this.world.minY - padY, this.world.maxY + padY);
+  }
+
+  private zoomAt(sx: number, sy: number, factor: number): void {
+    const t = this.target;
+    const worldX = t.x + (sx - this.w / 2) / t.z;
+    const worldY = t.y + (sy - this.h / 2) / t.z;
+    t.z = clamp(t.z * factor, this.fitZoom * 0.7, this.fitZoom * 90);
+    t.x = worldX - (sx - this.w / 2) / t.z;
+    t.y = worldY - (sy - this.h / 2) / t.z;
+    this.clampTarget();
+  }
+
+  private flyToPoint(x: number, y: number, zoom: number): void {
+    this.target.x = x;
+    this.target.y = y;
+    this.target.z = zoom;
+    this.clampTarget();
+  }
+
+  private flyToBounds(b: Bounds): void {
+    const bw = Math.max(b.maxX - b.minX, 1e-6);
+    const bh = Math.max(b.maxY - b.minY, 1e-6);
+    const zoom = Math.min((this.w - 160) / bw, (this.h - 160) / bh);
+    this.flyToPoint((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zoom);
+  }
+
+  private tick(dt: number): void {
+    if (this.w !== this.app.screen.width || this.h !== this.app.screen.height) this.measure();
+
+    // Momentum after a drag is released.
+    const d = this.drag;
+    if (!d.active && Math.abs(d.vx) + Math.abs(d.vy) > 0.01) {
+      this.target.x -= (d.vx * dt) / this.cam.z;
+      this.target.y -= (d.vy * dt) / this.cam.z;
+      d.vx *= Math.exp(-dt / 260);
+      d.vy *= Math.exp(-dt / 260);
+      this.clampTarget();
+    } else if (!d.active) {
+      d.vx = 0;
+      d.vy = 0;
+    }
+
+    // Ease the camera towards the target (zoom in log space so it feels even).
+    const k = 1 - Math.exp(-dt / 85);
+    const c = this.cam;
+    const t = this.target;
+    const dz = Math.log(t.z) - Math.log(c.z);
+    const moving = Math.abs(t.x - c.x) * c.z > 0.05 || Math.abs(t.y - c.y) * c.z > 0.05 || Math.abs(dz) > 5e-4;
+    if (moving) {
+      c.x += (t.x - c.x) * k;
+      c.y += (t.y - c.y) * k;
+      c.z = Math.exp(Math.log(c.z) + dz * k);
+      this.dirty = true;
+    } else if (c.x !== t.x || c.y !== t.y || c.z !== t.z) {
+      c.x = t.x;
+      c.y = t.y;
+      c.z = t.z;
+      this.dirty = true;
+    }
+
+    if (this.dirty) {
+      this.dirty = false;
+      this.draw();
+    }
+  }
+
+  // ---------------------------------------------------------------- drawing
+
+  private draw(): void {
+    const { w, h } = this;
+    const { x: cx, y: cy, z } = this.cam;
+    const toX = (x: number) => (x - cx) * z + w / 2;
+    const toY = (y: number) => (y - cy) * z + h / 2;
+    const zr = z / this.fitZoom;
+    const g = this.gfx;
+    g.clear();
+
+    // Graticule (lines every N degrees) so empty space still reads as a map.
+    const step = zr < 4 ? 1 : zr < 12 ? 0.5 : 0.1;
+    for (let lon = 70; lon <= 100; lon += step) {
+      const sx = toX(project(lon, 0).x);
+      if (sx >= 0 && sx <= w) g.moveTo(sx, 0).lineTo(sx, h);
+    }
+    for (let lat = 20; lat <= 40; lat += step) {
+      const sy = toY(project(0, lat).y);
+      if (sy >= 0 && sy <= h) g.moveTo(0, sy).lineTo(w, sy);
+    }
+    g.stroke({ width: 1, color: COLORS.grid });
+
+    // Country outline.
+    for (const ring of this.boundary) {
+      const pts: number[] = [];
+      let lastX = Infinity;
+      let lastY = Infinity;
+      for (let i = 0; i < ring.length; i += 2) {
+        const sx = toX(ring[i]);
+        const sy = toY(ring[i + 1]);
+        if (Math.abs(sx - lastX) + Math.abs(sy - lastY) < 1.2) continue;
+        pts.push(sx, sy);
+        lastX = sx;
+        lastY = sy;
+      }
+      g.poly(pts, true).fill({ color: COLORS.land }).stroke({ width: 1.75, color: COLORS.ink, join: "round" });
+    }
+
+    if (this.layers.trails) this.drawTrails(g, toX, toY);
+    this.drawMarkers(g, toX, toY, zr);
+    this.drawLabels(zr);
+  }
+
+  private drawTrails(g: Graphics, toX: (x: number) => number, toY: (y: number) => number): void {
+    const { w, h } = this;
+    const path = (only?: (t: TrailModel) => boolean) => {
+      for (const trail of this.trails) {
+        if (only && !only(trail)) continue;
+        for (const line of trail.lines) {
+          const b = line.bounds;
+          if (toX(b.maxX) < 0 || toX(b.minX) > w || toY(b.maxY) < 0 || toY(b.minY) > h) continue;
+          let lastX = toX(line.pts[0]);
+          let lastY = toY(line.pts[1]);
+          g.moveTo(lastX, lastY);
+          for (let i = 2; i < line.pts.length; i += 2) {
+            const sx = toX(line.pts[i]);
+            const sy = toY(line.pts[i + 1]);
+            if (Math.abs(sx - lastX) + Math.abs(sy - lastY) < 1.5 && i < line.pts.length - 2) continue;
+            g.lineTo(sx, sy);
+            lastX = sx;
+            lastY = sy;
+          }
+        }
+      }
+    };
+    const isSelected = (t: TrailModel) => t.id === this.selectedId;
+    path();
+    g.stroke({ width: 5, color: COLORS.ink, cap: "round", join: "round" });
+    path();
+    g.stroke({ width: 3, color: COLORS.trail, cap: "round", join: "round" });
+    if (this.selectedId && this.trails.some(isSelected)) {
+      path(isSelected);
+      g.stroke({ width: 9, color: COLORS.accent, alpha: 0.35, cap: "round", join: "round" });
+      path(isSelected);
+      g.stroke({ width: 3, color: COLORS.trail, cap: "round", join: "round" });
+    }
+  }
+
+  private drawMarkers(g: Graphics, toX: (x: number) => number, toY: (y: number) => number, zr: number): void {
+    const { w, h } = this;
+    const minPeak = zr < 1.6 ? 7500 : zr < 3 ? 7000 : zr < 5 ? 6500 : zr < 9 ? 6000 : 0;
+    this.visible = [];
+    for (const m of this.markers) {
+      const selected = m.id === this.selectedId;
+      if (m.kind === "PEAK") {
+        if (!this.layers.peaks || (m.elevationM < minPeak && !selected)) continue;
+      } else {
+        if (!this.layers.places) continue;
+        if (m.kind === "GATEWAY" && zr < 2.2 && !selected) continue;
+      }
+      const sx = toX(m.x);
+      const sy = toY(m.y);
+      if (sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) continue;
+      m.sx = sx;
+      m.sy = sy;
+      this.visible.push(m);
+    }
+
+    // Peaks, then gateways, then cities on top; hovered/selected last.
+    const order = (m: Marker) => (m.kind === "PEAK" ? 0 : m.kind === "GATEWAY" ? 1 : 2);
+    const ordered = [...this.visible].sort((a, b) => order(a) - order(b));
+    for (const m of ordered) this.drawMarker(g, m, m === this.hover ? 1.3 : 1);
+    const selected = this.visible.find((m) => m.id === this.selectedId);
+    if (selected) {
+      g.circle(selected.sx, selected.sy, selected.r + 9).stroke({ width: 2.5, color: COLORS.accent });
+      this.drawMarker(g, selected, 1.15);
+    }
+  }
+
+  private drawMarker(g: Graphics, m: Marker, scale: number): void {
+    const s = m.r * scale;
+    if (m.kind === "PEAK") {
+      const high = m.elevationM >= HIGH_PEAK_M;
+      g.poly([m.sx, m.sy - s, m.sx + s * 1.05, m.sy + s * 0.75, m.sx - s * 1.05, m.sy + s * 0.75], true)
+        .fill({ color: high ? COLORS.peakHigh : COLORS.peak })
+        .stroke({ width: 1.5, color: COLORS.ink, join: "round" });
+    } else {
+      g.poly([m.sx, m.sy - s, m.sx + s, m.sy, m.sx, m.sy + s, m.sx - s, m.sy], true)
+        .fill({ color: m.kind === "CITY" ? COLORS.ink : COLORS.accent })
+        .stroke({ width: 1.25, color: COLORS.paper, join: "round" });
+    }
+  }
+
+  private labelFor(m: Marker): Text {
+    let text = this.labels.get(m.id);
+    if (!text) {
+      text = new Text({
+        text: "",
+        style: { fontFamily: this.fontFamily, fontSize: 10.5, fill: COLORS.ink, letterSpacing: 0.3 },
+      });
+      // Hidden until placed, otherwise it flashes at (0,0) when the label does not fit.
+      text.visible = false;
+      this.labels.set(m.id, text);
+      this.labelLayer.addChild(text);
+    }
+    return text;
+  }
+
+  private labelText(m: Marker): string {
+    if (m.kind === "CITY") return m.name.toUpperCase();
+    if (m.kind === "PEAK" && m.elevationM >= HIGH_PEAK_M) return `${m.name} ${m.elevationM.toLocaleString("en-US")} m`;
+    return m.name;
+  }
+
+  private drawLabels(zr: number): void {
+    const bg = this.labelBg;
+    bg.clear();
+    for (const text of this.labels.values()) text.visible = false;
+
+    // Importance order: selection, hover, cities, high peaks, gateways, the rest.
+    const rank = (m: Marker) =>
+      m.id === this.selectedId ? 0 : m === this.hover ? 1 : PRIORITY_PLACES.has(m.name) ? 2 : m.kind === "CITY" ? 3 : m.kind === "PEAK" && m.elevationM >= HIGH_PEAK_M ? 4 : m.kind === "GATEWAY" ? 5 : 6;
+    const candidates = [...this.visible].sort((a, b) => rank(a) - rank(b) || b.elevationM - a.elevationM);
+    const placed: Rect[] = [];
+    let count = 0;
+    for (const m of candidates) {
+      if (count >= MAX_LABELS) break;
+      if (m.kind === "PEAK" && m.elevationM < HIGH_PEAK_M && zr < 5 && m.id !== this.selectedId && m !== this.hover) continue;
+      const text = this.labelFor(m);
+      const content = this.labelText(m);
+      if (text.text !== content) text.text = content;
+      const bw = text.width + 12;
+      const bh = text.height + 6;
+      const fits = (rect: Rect) =>
+        rect.x >= 0 && rect.y >= 0 && rect.x + rect.w <= this.w && rect.y + rect.h <= this.h && !placed.some((p) => overlaps(p, rect));
+      const gap = m.r + 6;
+      const options: Rect[] = [
+        { x: m.sx + gap, y: m.sy - bh / 2, w: bw, h: bh },
+        { x: m.sx - gap - bw, y: m.sy - bh / 2, w: bw, h: bh },
+        { x: m.sx - bw / 2, y: m.sy - gap - bh, w: bw, h: bh },
+        { x: m.sx - bw / 2, y: m.sy + gap, w: bw, h: bh },
+      ];
+      const rect = options.find(fits);
+      if (!rect) continue;
+      placed.push(rect);
+      count++;
+      const active = m.id === this.selectedId;
+      bg.rect(rect.x, rect.y, rect.w, rect.h)
+        .fill({ color: active ? COLORS.accent : COLORS.paper })
+        .stroke({ width: 1, color: COLORS.ink });
+      text.style.fill = active ? COLORS.paper : COLORS.ink;
+      text.position.set(rect.x + 6, rect.y + 3);
+      text.visible = true;
+    }
+  }
+
+  // ---------------------------------------------------------------- input
+
+  private pick(sx: number, sy: number): Marker | null {
+    let best: Marker | null = null;
+    let bestDist = Infinity;
+    for (const m of this.visible) {
+      const dist = Math.hypot(m.sx - sx, m.sy - sy);
+      if (dist <= m.r + 8 && dist < bestDist) {
+        best = m;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  private setCursor(): void {
+    this.app.canvas.style.cursor = this.drag.active && this.drag.moved > CLICK_SLOP_PX ? "grabbing" : this.hover ? "pointer" : "grab";
+  }
+
+  private onPointerDown = (e: PointerEvent): void => {
+    this.app.canvas.setPointerCapture(e.pointerId);
+    this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    this.userMoved = true;
+    if (this.pointers.size === 1) {
+      this.drag = { active: true, moved: 0, lastX: e.offsetX, lastY: e.offsetY, lastT: e.timeStamp, vx: 0, vy: 0 };
+    } else if (this.pointers.size === 2) {
+      this.drag.active = false;
+      const [a, b] = [...this.pointers.values()];
+      this.pinchDistance = Math.hypot(a.x - b.x, a.y - b.y);
+    }
+  };
+
+  private onPointerMove = (e: PointerEvent): void => {
+    if (!this.pointers.has(e.pointerId)) {
+      this.updateHover(e.offsetX, e.offsetY);
+      return;
+    }
+    this.pointers.set(e.pointerId, { x: e.offsetX, y: e.offsetY });
+    if (this.pointers.size === 2) {
+      const [a, b] = [...this.pointers.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (this.pinchDistance > 0) this.zoomAt((a.x + b.x) / 2, (a.y + b.y) / 2, distance / this.pinchDistance);
+      this.pinchDistance = distance;
+      return;
+    }
+    const d = this.drag;
+    if (!d.active) return;
+    const dx = e.offsetX - d.lastX;
+    const dy = e.offsetY - d.lastY;
+    d.moved += Math.abs(dx) + Math.abs(dy);
+    if (d.moved > CLICK_SLOP_PX) {
+      // Move camera and target together so panning tracks the pointer exactly.
+      this.cam.x -= dx / this.cam.z;
+      this.cam.y -= dy / this.cam.z;
+      this.target.x -= dx / this.cam.z;
+      this.target.y -= dy / this.cam.z;
+      const dtMs = Math.max(1, e.timeStamp - d.lastT);
+      d.vx = d.vx * 0.6 + (dx / dtMs) * 0.4;
+      d.vy = d.vy * 0.6 + (dy / dtMs) * 0.4;
+      this.hover = null;
+      this.dirty = true;
+      this.setCursor();
+    }
+    d.lastX = e.offsetX;
+    d.lastY = e.offsetY;
+    d.lastT = e.timeStamp;
+  };
+
+  private onPointerUp = (e: PointerEvent): void => {
+    const wasDragging = this.drag.active;
+    this.pointers.delete(e.pointerId);
+    if (this.pointers.size === 0 && wasDragging) {
+      if (this.drag.moved <= CLICK_SLOP_PX) {
+        this.drag.vx = this.drag.vy = 0;
+        const hit = this.pick(e.offsetX, e.offsetY);
+        if (hit) this.select(hit.id, true);
+        else if (this.selectedId) this.select(null, false);
+      } else if (e.timeStamp - this.drag.lastT > 80) {
+        this.drag.vx = this.drag.vy = 0;
+      }
+    }
+    this.drag.active = false;
+    this.pinchDistance = 0;
+    this.updateHover(e.offsetX, e.offsetY);
+  };
+
+  private onPointerLeave = (): void => {
+    if (this.hover) {
+      this.hover = null;
+      this.dirty = true;
+    }
+  };
+
+  private updateHover(sx: number, sy: number): void {
+    const hit = this.pick(sx, sy);
+    if (hit !== this.hover) {
+      this.hover = hit;
+      this.dirty = true;
+    }
+    this.setCursor();
+  }
+
+  private onWheel = (e: WheelEvent): void => {
+    e.preventDefault();
+    this.userMoved = true;
+    const delta = e.deltaY * (e.deltaMode === 1 ? 33 : 1);
+    this.zoomAt(e.offsetX, e.offsetY, Math.exp(-delta * (e.ctrlKey ? 0.01 : 0.0016)));
+  };
+
+  private onKeyDown = (e: KeyboardEvent): void => {
+    const pan = 120 / this.target.z;
+    const moves: Record<string, [number, number]> = {
+      ArrowLeft: [-pan, 0],
+      ArrowRight: [pan, 0],
+      ArrowUp: [0, -pan],
+      ArrowDown: [0, pan],
+    };
+    if (moves[e.key]) {
+      this.target.x += moves[e.key][0];
+      this.target.y += moves[e.key][1];
+      this.clampTarget();
+    } else if (e.key === "+" || e.key === "=") this.zoomBy(1.5);
+    else if (e.key === "-") this.zoomBy(1 / 1.5);
+    else if (e.key === "0") {
+      this.userMoved = false;
+      this.fitAll();
+    } else if (e.key === "Escape") this.select(null, false);
+    else return;
+    this.userMoved = true;
+    e.preventDefault();
+  };
+}
