@@ -29,7 +29,7 @@ export class GeoService {
       SELECT key, name, url, license, attribution FROM "DataSource" ORDER BY name`;
   }
 
-  /** GeoJSON features (WGS84), optionally filtered by kind. Coordinates keep ~1 m precision. */
+  /** GeoJSON features (WGS84), optionally filtered by kind. Points keep ~1 m precision; lines are lightly simplified. */
   async listFeatures(kinds: GeoFeatureKind[]): Promise<GeoFeatureCollection> {
     const filter = kinds.length
       ? Prisma.sql`WHERE g.kind::text = ANY(${kinds}::text[])`
@@ -37,7 +37,12 @@ export class GeoService {
 
     const rows = await this.prisma.client.$queryRaw<FeatureRow[]>`
       SELECT g.id, g.kind::text AS kind, g.name, g."nameLocal", g."elevationM", g.properties AS details,
-             ST_AsGeoJSON(g.geometry, 5)::json AS geometry,
+             CASE
+               -- Lines are simplified (~11 m tolerance, 4 decimals): invisible on the map, far fewer points.
+               WHEN g.kind IN ('TRAIL', 'COUNTRY_BOUNDARY')
+                 THEN ST_AsGeoJSON(ST_SimplifyPreserveTopology(g.geometry, 0.0001), 4)::json
+               ELSE ST_AsGeoJSON(g.geometry, 5)::json
+             END AS geometry,
              s.key AS "sourceKey", g."sourceRef"
       FROM "GeoFeature" g
       JOIN "DataSource" s ON s.id = g."sourceId"
