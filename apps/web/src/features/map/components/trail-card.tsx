@@ -8,7 +8,6 @@ import { KIND_LABEL, METERS_TO_FEET } from "../constants";
 import { useFeatureDetail } from "../hooks/use-feature-detail";
 import { TrekPlanning } from "./trek-info";
 
-// Recharts is heavy: it is downloaded only when someone opens a trail.
 const ElevationChart = dynamic(() => import("./elevation-chart"), {
   ssr: false,
   loading: () => <div className="h-[150px] animate-pulse bg-surface-muted" />,
@@ -46,10 +45,20 @@ export function TrailCard({ feature, onClose }: { feature: GeoFeature; onClose: 
   const section = profile?.sections[Math.min(sectionIndex, (profile?.sections.length ?? 1) - 1)];
 
   return (
-    <div role="status" className="max-h-full w-[min(390px,100%)] overflow-y-auto border border-border bg-surface p-5 shadow-md">
+    <div
+      role="status"
+      className="max-h-full w-[min(390px,100%)] overflow-y-auto border border-border bg-surface p-5 shadow-md"
+    >
       <div className="flex items-start justify-between gap-3">
-        <span className="bg-primary/30 px-2 py-1 font-mono text-[10px] uppercase">{KIND_LABEL.TRAIL}</span>
-        <button type="button" onClick={onClose} aria-label="Close details" className="-mt-1 -mr-1 px-2 py-1 text-lg leading-none hover:bg-surface-muted">
+        <span className="bg-primary/30 px-2 py-1 font-mono text-[10px] uppercase">
+          {KIND_LABEL.TRAIL}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close details"
+          className="-mt-1 -mr-1 px-2 py-1 text-lg leading-none hover:bg-surface-muted"
+        >
           ×
         </button>
       </div>
@@ -58,28 +67,49 @@ export function TrailCard({ feature, onClose }: { feature: GeoFeature; onClose: 
 
       <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3">
         {mappedKm !== null && (
-          <Stat label="Mapped length" value={`~${fmt(mappedKm)} km`} hint={listedKm !== null ? `of ~${fmt(listedKm)} km listed` : undefined} />
+          <Stat
+            label="Mapped length"
+            value={`~${fmt(mappedKm)} km`}
+            hint={listedKm !== null ? `of ~${fmt(listedKm)} km listed` : undefined}
+          />
         )}
         {profile && (
           <>
-            <Stat label="Highest point" value={`${fmt(profile.highestM)} m`} hint={`${fmt(Math.round(profile.highestM * METERS_TO_FEET))} ft`} />
+            <Stat
+              label="Highest point"
+              value={`${fmt(profile.highestM)} m`}
+              hint={`${fmt(Math.round(profile.highestM * METERS_TO_FEET))} ft`}
+            />
             <Stat label="Lowest point" value={`${fmt(profile.lowestM)} m`} />
-            <Stat label="Ascent / descent" value={`~${fmt(profile.ascentM)} / ${fmt(profile.descentM)} m`} hint="mapped parts only" />
+            <Stat
+              label="Ascent / descent"
+              value={`~${fmt(profile.ascentM)} / ${fmt(profile.descentM)} m`}
+              hint="mapped parts only"
+            />
           </>
         )}
       </dl>
 
       {partial && (
         <p className="mt-3 border-l-2 border-primary pl-3 text-xs text-muted">
-          OpenStreetMap only has part of this route so far, so the length, highest point and profile cover the mapped
-          parts only, not the whole trek.
+          OpenStreetMap only has part of this route so far, so the length, highest point and profile
+          cover the mapped parts only, not the whole trek.
         </p>
       )}
 
       <TrekPlanning trek={detail?.trek ?? null} loaded={!!detail} />
 
-      {loading && <div className="mt-4 h-[150px] animate-pulse bg-surface-muted" aria-label="Loading elevation profile" />}
-      {failed && <p className="mt-4 text-sm text-muted">We couldn&apos;t load this trail&apos;s elevation profile.</p>}
+      {loading && (
+        <div
+          className="mt-4 h-[150px] animate-pulse bg-surface-muted"
+          aria-label="Loading elevation profile"
+        />
+      )}
+      {failed && (
+        <p className="mt-4 text-sm text-muted">
+          We couldn&apos;t load this trail&apos;s elevation profile.
+        </p>
+      )}
 
       {profile && section && (
         <div className="mt-4">
@@ -94,7 +124,9 @@ export function TrailCard({ feature, onClose }: { feature: GeoFeature; onClose: 
                   onClick={() => setChosen({ id: feature.id, index: i })}
                   className={cn(
                     "h-7 px-2.5 text-xs transition-colors",
-                    i === sectionIndex ? "bg-foreground text-background" : "bg-surface-muted hover:bg-border-soft",
+                    i === sectionIndex
+                      ? "bg-foreground text-background"
+                      : "bg-surface-muted hover:bg-border-soft",
                   )}
                 >
                   Section {i + 1} · {fmt(Math.round(s.lengthKm))} km
@@ -106,7 +138,9 @@ export function TrailCard({ feature, onClose }: { feature: GeoFeature; onClose: 
             <ElevationChart elevationsM={section.elevationsM} spacingKm={profile.spacingKm} />
           </div>
           {profile.sections.length > 1 && (
-            <p className="mt-1 text-[11px] text-muted">Sections are the continuous stretches mapped so far. Gaps between them are not drawn.</p>
+            <p className="mt-1 text-[11px] text-muted">
+              Sections are the continuous stretches mapped so far. Gaps between them are not drawn.
+            </p>
           )}
         </div>
       )}
@@ -124,7 +158,9 @@ export function TrailCard({ feature, onClose }: { feature: GeoFeature; onClose: 
                     <span key={n.id}>
                       {i > 0 && " · "}
                       {n.name}
-                      {n.elevationM ? <span className="text-muted"> {fmt(n.elevationM)} m</span> : null}
+                      {n.elevationM ? (
+                        <span className="text-muted"> {fmt(n.elevationM)} m</span>
+                      ) : null}
                     </span>
                   ))}
                 </p>

@@ -10,7 +10,6 @@ interface DetailState {
   failed?: boolean;
 }
 
-/** Loads the detail of one feature. Switching ids cancels the previous request. */
 export function useFeatureDetail(id: string | null) {
   const [state, setState] = useState<DetailState>({ id: null });
 

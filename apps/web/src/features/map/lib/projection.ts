@@ -1,8 +1,3 @@
-/**
- * Real geography -> flat "world" units (Web Mercator, scaled so Nepal is ~140 units wide).
- * This is the only place that knows about longitude/latitude; the visual styling of the map
- * lives in map-engine.ts and never touches real coordinates.
- */
 export interface Bounds {
   minX: number;
   minY: number;
@@ -10,12 +5,8 @@ export interface Bounds {
   maxY: number;
 }
 
-/** World units per radian of longitude. Shared with the terrain tile maths. */
 export const WORLD_SCALE = 1000;
-/**
- * Scene units per world unit. Static geometry (outline, trails, terrain) is built once in scene
- * space and the camera just scales and moves that scene, so panning needs no redrawing.
- */
+
 export const SPACE = 8;
 const K = WORLD_SCALE;
 

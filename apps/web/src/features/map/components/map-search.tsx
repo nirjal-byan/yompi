@@ -19,7 +19,11 @@ export function MapSearch({
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return features
-      .filter((f) => f.properties.name.toLowerCase().includes(q) || f.properties.nameLocal?.toLowerCase().includes(q))
+      .filter(
+        (f) =>
+          f.properties.name.toLowerCase().includes(q) ||
+          f.properties.nameLocal?.toLowerCase().includes(q),
+      )
       .sort((a, b) => {
         const aStart = a.properties.name.toLowerCase().startsWith(q) ? 0 : 1;
         const bStart = b.properties.name.toLowerCase().startsWith(q) ? 0 : 1;
@@ -56,11 +60,12 @@ export function MapSearch({
       {open && query.trim() && (
         <ul className="absolute top-full right-0 left-0 z-20 border border-border bg-surface shadow-md">
           {results.length === 0 ? (
-            <li className="px-4 py-3 text-sm text-muted">Nothing found for &ldquo;{query}&rdquo;</li>
+            <li className="px-4 py-3 text-sm text-muted">
+              Nothing found for &ldquo;{query}&rdquo;
+            </li>
           ) : (
             results.map((f) => (
               <li key={f.id}>
-                {/* onMouseDown fires before the input's blur closes the list. */}
                 <button
                   type="button"
                   onMouseDown={(e) => {
@@ -72,7 +77,9 @@ export function MapSearch({
                   <span>{f.properties.name}</span>
                   <span className="font-mono text-[11px] text-muted uppercase">
                     {KIND_LABEL[f.properties.kind]}
-                    {f.properties.elevationM ? ` · ${f.properties.elevationM.toLocaleString("en-US")} m` : ""}
+                    {f.properties.elevationM
+                      ? ` · ${f.properties.elevationM.toLocaleString("en-US")} m`
+                      : ""}
                   </span>
                 </button>
               </li>

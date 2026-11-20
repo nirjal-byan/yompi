@@ -1,11 +1,6 @@
 import { Container, Sprite, Texture } from "pixi.js";
 import { type Bounds, SPACE, WORLD_SCALE } from "./projection";
 
-/**
- * Real-elevation terrain. Open "Terrarium" elevation tiles (SRTM / GMTED2010 data) are downloaded
- * and shaded in web workers (see terrain.worker.ts), then shown as sprites in scene space, so
- * panning and zooming only move the scene container: no per-frame work for terrain.
- */
 const TILE_URL = (z: number, x: number, y: number) =>
   `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${z}/${x}/${y}.png`;
 const TILE_PX = 256;
@@ -14,7 +9,7 @@ const MAX_ZOOM = 12;
 const MAX_CACHED = 160;
 const MAX_CONCURRENT = 6;
 const RETRY_AFTER_MS = 15_000;
-/** Tiles within this fraction of a screen beyond the edges are kept ready for the next pan. */
+
 const PREFETCH = 0.25;
 const TWO_PI_K = 2 * Math.PI * WORLD_SCALE;
 
@@ -47,7 +42,6 @@ export class TerrainLayer {
   private nextRequest = 0;
   private pending = new Map<number, (bitmap: ImageBitmap | null) => void>();
 
-  /** `extent` is the world area worth loading (Nepal plus a margin); tiles outside it are never requested. */
   constructor(
     private readonly extent: Bounds,
     private readonly onTileReady: () => void,
@@ -55,7 +49,9 @@ export class TerrainLayer {
     this.container.sortableChildren = true;
     const count = clamp((navigator.hardwareConcurrency || 4) - 2, 2, 3);
     for (let i = 0; i < count; i++) {
-      const worker = new Worker(new URL("./terrain.worker.ts", import.meta.url), { type: "module" });
+      const worker = new Worker(new URL("./terrain.worker.ts", import.meta.url), {
+        type: "module",
+      });
       worker.onmessage = (event: MessageEvent<{ id: number; bitmap: ImageBitmap | null }>) => {
         this.pending.get(event.data.id)?.(event.data.bitmap);
         this.pending.delete(event.data.id);
@@ -64,7 +60,6 @@ export class TerrainLayer {
     }
   }
 
-  /** Requests the tiles the camera needs and hides the ones far off screen. Cheap enough to call often. */
   update(cam: { x: number; y: number; z: number }, w: number, h: number, enabled: boolean): void {
     this.container.visible = enabled;
     this.wanted.clear();
@@ -78,15 +73,19 @@ export class TerrainLayer {
     const top = cam.y - halfH;
     const bottom = cam.y + halfH;
 
-    // Pick the tile level whose tiles are ~256-360 screen px wide, always keeping a coarse base underneath.
-    const detail = clamp(Math.round(Math.log2((TWO_PI_K * cam.z) / TILE_PX) + 0.2), BASE_ZOOM + 1, MAX_ZOOM);
+    const detail = clamp(
+      Math.round(Math.log2((TWO_PI_K * cam.z) / TILE_PX) + 0.2),
+      BASE_ZOOM + 1,
+      MAX_ZOOM,
+    );
     this.collect(BASE_ZOOM, left, right, top, bottom);
     this.collect(detail, left, right, top, bottom);
 
     for (const tile of this.tiles.values()) {
       if (!tile.sprite) continue;
-      // Hide finished tiles that are well outside the view so the GPU skips them.
-      tile.sprite.visible = this.wanted.has(tile.key) || this.touches(tile, left, right, top, bottom);
+
+      tile.sprite.visible =
+        this.wanted.has(tile.key) || this.touches(tile, left, right, top, bottom);
     }
     this.pump();
   }
@@ -116,7 +115,7 @@ export class TerrainLayer {
     const x1 = clamp(toTx(right), 0, n - 1);
     const y0 = clamp(toTy(top), 0, n - 1);
     const y1 = clamp(toTy(bottom), 0, n - 1);
-    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 150) return; // far too many tiles: view is not sensible, skip
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 150) return;
 
     const size = TWO_PI_K / n;
     const now = performance.now();
@@ -124,7 +123,13 @@ export class TerrainLayer {
       for (let y = y0; y <= y1; y++) {
         const wx = (TWO_PI_K * x) / n - Math.PI * WORLD_SCALE;
         const wy = Math.PI * WORLD_SCALE * ((2 * y) / n - 1);
-        if (wx > this.extent.maxX || wx + size < this.extent.minX || wy > this.extent.maxY || wy + size < this.extent.minY) continue;
+        if (
+          wx > this.extent.maxX ||
+          wx + size < this.extent.minX ||
+          wy > this.extent.maxY ||
+          wy + size < this.extent.minY
+        )
+          continue;
 
         const key = `${z}/${x}/${y}`;
         this.wanted.add(key);
@@ -143,16 +148,15 @@ export class TerrainLayer {
   }
 
   private pump(): void {
-    // Forget queued tiles the view has moved away from, so fast panning never builds a backlog.
     this.queue = this.queue.filter((tile) => {
       if (this.wanted.has(tile.key)) return true;
       this.tiles.delete(tile.key);
       return false;
     });
     while (this.active < MAX_CONCURRENT && this.queue.length > 0) {
-      // Coarse tiles first so something appears quickly, then detail.
       let best = 0;
-      for (let i = 1; i < this.queue.length; i++) if (this.queue[i].z < this.queue[best].z) best = i;
+      for (let i = 1; i < this.queue.length; i++)
+        if (this.queue[i].z < this.queue[best].z) best = i;
       const [tile] = this.queue.splice(best, 1);
       void this.load(tile);
     }
@@ -181,8 +185,11 @@ export class TerrainLayer {
       const n = 2 ** tile.z;
       const size = (TWO_PI_K / n) * SPACE;
       const sprite = new Sprite(texture);
-      // Placed once, in scene space. A hair of overlap hides seams between neighbouring tiles.
-      sprite.position.set(((TWO_PI_K * tile.x) / n - Math.PI * WORLD_SCALE) * SPACE - size * 0.002, Math.PI * WORLD_SCALE * ((2 * tile.y) / n - 1) * SPACE - size * 0.002);
+
+      sprite.position.set(
+        ((TWO_PI_K * tile.x) / n - Math.PI * WORLD_SCALE) * SPACE - size * 0.002,
+        Math.PI * WORLD_SCALE * ((2 * tile.y) / n - 1) * SPACE - size * 0.002,
+      );
       sprite.width = size * 1.004;
       sprite.height = size * 1.004;
       sprite.zIndex = tile.z;
