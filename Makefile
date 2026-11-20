@@ -1,4 +1,4 @@
-.PHONY: db.import-geo help setup services.start services.stop services.logs db.migrate db.generate db.studio run run.web run.api build clean
+.PHONY: db.build-profiles db.import-geo help setup services.start services.stop services.logs db.migrate db.generate db.studio run run.web run.api build clean
 
 help:
 	@echo "YOMPI Development Commands:"
@@ -50,3 +50,6 @@ clean:
 	docker compose down -v
 db.import-geo:
 	pnpm db:import-geo
+
+db.build-profiles:
+	pnpm db:build-profiles

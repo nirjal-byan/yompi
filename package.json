@@ -20,7 +20,8 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
-    "db:import-geo": "pnpm --filter @yompi/database run import-geo"
+    "db:import-geo": "pnpm --filter @yompi/database run import-geo",
+    "db:build-profiles": "pnpm --filter @yompi/database run build-profiles"
   },
   "devDependencies": {
     "turbo": "^2.11.11"

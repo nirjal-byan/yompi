@@ -13,11 +13,13 @@
     "@prisma/client": "^6.4.0"
   },
   "devDependencies": {
+    "pngjs": "^7.0.0",
     "prisma": "^6.4.0",
     "typescript": "^5.7.0"
   },
   "scripts": {
     "build": "prisma generate --schema=./prisma/schema.prisma && tsc",
-    "import-geo": "node scripts/import-geo.mjs"
+    "import-geo": "node scripts/import-geo.mjs",
+    "build-profiles": "node scripts/build-trail-profiles.mjs"
   }
 }
