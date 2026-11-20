@@ -1,4 +1,4 @@
-import type { GeoFeatureCollection } from "@yompi/shared";
+import type { FeatureDetail, GeoFeatureCollection } from "@yompi/shared";
 import { API_URL } from "@/lib/config";
 
 export async function getGeoFeatures(): Promise<GeoFeatureCollection> {
@@ -6,4 +6,10 @@ export async function getGeoFeatures(): Promise<GeoFeatureCollection> {
   const res = await fetch(`${API_URL}/geo/features`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Geo request failed with ${res.status}`);
   return (await res.json()) as GeoFeatureCollection;
+}
+
+export async function getFeatureDetail(id: string, signal?: AbortSignal): Promise<FeatureDetail> {
+  const res = await fetch(`${API_URL}/geo/features/${id}`, { cache: "no-store", signal });
+  if (!res.ok) throw new Error(`Feature request failed with ${res.status}`);
+  return (await res.json()) as FeatureDetail;
 }

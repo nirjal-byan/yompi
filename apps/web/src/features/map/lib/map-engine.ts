@@ -42,8 +42,11 @@ const MAX_PIXEL_RATIO = 1.5;
 const REBASE_MIN = 0.65;
 const REBASE_MAX = 1.55;
 const TERRAIN_UPDATE_MS = 90;
+/** Details cards sit on the left of the map. Focus moves keep the selection clear of them (wide screens only). */
+const CARD_INSET_PX = { trail: 410, place: 345, intro: 345 };
+const NARROW_SCREEN_PX = 900;
 
-type PlaceKind = "PEAK" | "CITY" | "GATEWAY" | "LAKE" | "PASS";
+type PlaceKind = "PEAK" | "CITY" | "GATEWAY" | "LAKE" | "PASS" | "TRAIL";
 
 interface Marker {
   id: string;
@@ -251,8 +254,8 @@ export class NepalMapEngine {
     const found = this.findById(id);
     if (found && focus) {
       this.userMoved = true;
-      if ("lines" in found) this.flyToBounds(found.bounds);
-      else this.flyToPoint(found.x, found.y, Math.max(this.target.z, this.fitZoom * 2.5));
+      if ("lines" in found) this.flyToBounds(found.bounds, this.inset("trail"));
+      else this.flyToPoint(found.x, found.y, Math.max(this.target.z, this.fitZoom * 2.5), this.inset("place"));
     }
     this.callbacks.onSelect(found ? found.feature : null);
     this.vectorDirty = true; // a selected trail is highlighted in the static lines
@@ -269,7 +272,7 @@ export class NepalMapEngine {
     }
     if (bounds.minX === Infinity) return;
     this.userMoved = true;
-    this.flyToBounds(bounds);
+    this.flyToBounds(bounds, this.inset("intro"));
   }
 
   // ---------------------------------------------------------------- data
@@ -308,6 +311,15 @@ export class NepalMapEngine {
           lines.push({ pts, bounds: lineBounds });
         }
         this.trails.push({ id: feature.id, feature, lines, bounds: trailBounds });
+        // Anchor on the longest stretch so the trail gets a label and an easy click target.
+        if (lines.length > 0) {
+          const longest = lines.reduce((a, b) => (b.pts.length > a.pts.length ? b : a));
+          const mid = Math.floor(longest.pts.length / 4) * 2;
+          this.markers.push({
+            id: feature.id, feature, kind: "TRAIL", name, elevationM: 0,
+            x: longest.pts[mid] / SPACE, y: longest.pts[mid + 1] / SPACE, r: 5, sx: 0, sy: 0,
+          });
+        }
       } else {
         const [lon, lat] = geometry.coordinates as number[];
         const p = project(lon, lat);
@@ -334,7 +346,7 @@ export class NepalMapEngine {
 
   private findById(id: string | null): Marker | TrailModel | undefined {
     if (!id) return undefined;
-    return this.markers.find((m) => m.id === id) ?? this.trails.find((t) => t.id === id);
+    return this.trails.find((t) => t.id === id) ?? this.markers.find((m) => m.id === id);
   }
 
   private isFeatureLayerVisible(item: Marker | TrailModel): boolean {
@@ -343,6 +355,7 @@ export class NepalMapEngine {
       case "PEAK": return this.layers.peaks;
       case "LAKE": return this.layers.lakes;
       case "PASS": return this.layers.passes;
+      case "TRAIL": return this.layers.trails;
       default: return this.layers.places;
     }
   }
@@ -380,19 +393,25 @@ export class NepalMapEngine {
     this.invalidate();
   }
 
-  private flyToPoint(x: number, y: number, zoom: number): void {
-    this.target.x = x;
+  /** Pixels of the map covered by the card on the left; 0 on narrow screens where the card overlays everything. */
+  private inset(card: keyof typeof CARD_INSET_PX): number {
+    return this.w >= NARROW_SCREEN_PX ? CARD_INSET_PX[card] : 0;
+  }
+
+  private flyToPoint(x: number, y: number, zoom: number, insetLeft = 0): void {
+    // Shift the centre left of the target so the target lands in the free area to the right of the card.
+    this.target.x = x - insetLeft / 2 / zoom;
     this.target.y = y;
     this.target.z = zoom;
     this.clampTarget();
     this.invalidate();
   }
 
-  private flyToBounds(b: Bounds): void {
+  private flyToBounds(b: Bounds, insetLeft = 0): void {
     const bw = Math.max(b.maxX - b.minX, 1e-6);
     const bh = Math.max(b.maxY - b.minY, 1e-6);
-    const zoom = Math.min((this.w - 160) / bw, (this.h - 160) / bh);
-    this.flyToPoint((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zoom);
+    const zoom = Math.min((this.w - insetLeft - 160) / bw, (this.h - 160) / bh);
+    this.flyToPoint((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zoom, insetLeft);
   }
 
   // ---------------------------------------------------------------- render loop (on demand)
@@ -606,6 +625,8 @@ export class NepalMapEngine {
         if (!this.layers.peaks) continue;
       } else if (m.kind === "LAKE") {
         if (!this.layers.lakes) continue;
+      } else if (m.kind === "TRAIL") {
+        if (!this.layers.trails) continue;
       } else if (m.kind === "PASS") {
         if (!this.layers.passes || (zr < 1.8 && !selected)) continue;
       } else {
@@ -621,7 +642,7 @@ export class NepalMapEngine {
     }
 
     // Peaks, then lakes and passes, then gateways, then cities on top; hovered/selected last.
-    const order = (m: Marker) => (m.kind === "PEAK" ? 0 : m.kind === "LAKE" || m.kind === "PASS" ? 1 : m.kind === "GATEWAY" ? 2 : 3);
+    const order = (m: Marker) => (m.kind === "PEAK" ? 0 : m.kind === "LAKE" || m.kind === "PASS" || m.kind === "TRAIL" ? 1 : m.kind === "GATEWAY" ? 2 : 3);
     const ordered = [...this.visible].sort((a, b) => order(a) - order(b));
     for (const m of ordered) this.drawMarker(g, m, m === this.hover ? 1.3 : 1);
     const selected = this.visible.find((m) => m.id === this.selectedId);
@@ -643,6 +664,8 @@ export class NepalMapEngine {
     } else if (m.kind === "LAKE") {
       g.circle(m.sx, m.sy, s).fill({ color: COLORS.lake }).stroke(stroke);
       g.circle(m.sx - s * 0.3, m.sy - s * 0.3, s * 0.3).fill({ color: COLORS.paper, alpha: 0.85 });
+    } else if (m.kind === "TRAIL") {
+      g.rect(m.sx - s, m.sy - s, s * 2, s * 2).fill({ color: COLORS.trail }).stroke(stroke);
     } else if (m.kind === "PASS") {
       // Inverted triangle: a dip between two peaks.
       g.poly([m.sx - s, m.sy - s * 0.7, m.sx + s, m.sy - s * 0.7, m.sx, m.sy + s * 0.9], true)
@@ -690,7 +713,7 @@ export class NepalMapEngine {
       : PRIORITY_PLACES.has(m.name) ? 2
       : m.kind === "CITY" ? 3
       : m.kind === "PEAK" && m.elevationM >= HIGH_PEAK_M ? 4
-      : m.kind === "LAKE" ? 5
+      : m.kind === "LAKE" || m.kind === "TRAIL" ? 5
       : m.kind === "GATEWAY" || m.kind === "PASS" ? 6
       : 7;
     const candidates = [...this.visible].sort((a, b) => rank(a) - rank(b) || b.elevationM - a.elevationM);
@@ -737,6 +760,38 @@ export class NepalMapEngine {
       if (dist <= m.r + 8 && dist < bestDist) {
         best = m;
         bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  /** Id of the trail whose line passes within a few pixels of a click, if any. Runs on click only. */
+  private pickTrail(sx: number, sy: number): string | null {
+    if (!this.layers.trails) return null;
+    const { x: cx, y: cy, z } = this.cam;
+    const k = z / SPACE;
+    const ox = this.w / 2 - cx * z;
+    const oy = this.h / 2 - cy * z;
+    const reach = 9;
+    let best: string | null = null;
+    let bestDist = reach;
+    for (const trail of this.trails) {
+      for (const line of trail.lines) {
+        const b = line.bounds;
+        if (b.maxX * z + ox < sx - reach || b.minX * z + ox > sx + reach || b.maxY * z + oy < sy - reach || b.minY * z + oy > sy + reach) continue;
+        const pts = line.pts;
+        for (let i = 2; i < pts.length; i += 2) {
+          const ax = pts[i - 2] * k + ox, ay = pts[i - 1] * k + oy;
+          const bx = pts[i] * k + ox, by = pts[i + 1] * k + oy;
+          const dx = bx - ax, dy = by - ay;
+          const len2 = dx * dx + dy * dy;
+          const t = len2 === 0 ? 0 : clamp(((sx - ax) * dx + (sy - ay) * dy) / len2, 0, 1);
+          const dist = Math.hypot(sx - (ax + t * dx), sy - (ay + t * dy));
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = trail.id;
+          }
+        }
       }
     }
     return best;
@@ -802,8 +857,8 @@ export class NepalMapEngine {
     if (this.pointers.size === 0 && wasDragging) {
       if (this.drag.moved <= CLICK_SLOP_PX) {
         this.drag.vx = this.drag.vy = 0;
-        const hit = this.pick(e.offsetX, e.offsetY);
-        if (hit) this.select(hit.id, true);
+        const hitId = this.pick(e.offsetX, e.offsetY)?.id ?? this.pickTrail(e.offsetX, e.offsetY);
+        if (hitId) this.select(hitId, true);
         else if (this.selectedId) this.select(null, false);
       } else if (e.timeStamp - this.drag.lastT > 80) {
         this.drag.vx = this.drag.vy = 0;

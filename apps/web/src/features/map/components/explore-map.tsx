@@ -9,6 +9,7 @@ import { TERRAIN_ATTRIBUTION } from "../constants";
 import { getGeoFeatures } from "../services/geo-api";
 import type { MapLayers, NepalMapEngine } from "../lib/map-engine";
 import { FeatureCard } from "./feature-card";
+import { TrailCard } from "./trail-card";
 import { MapSearch } from "./map-search";
 
 const DEFAULT_LAYERS: MapLayers = { terrain: true, peaks: true, lakes: true, passes: true, trails: true, places: true };
@@ -146,9 +147,13 @@ export function ExploreMap() {
               </button>
             </div>
 
-            <div className="absolute bottom-3 left-3 max-w-[calc(100%-1.5rem)]">
+            <div className="absolute bottom-3 left-3 flex max-h-[calc(100%-1.5rem)] max-w-[calc(100%-1.5rem)]">
               {selected ? (
-                <FeatureCard feature={selected} onClose={() => engineRef.current?.select(null, false)} />
+                selected.properties.kind === "TRAIL" ? (
+                  <TrailCard feature={selected} onClose={() => engineRef.current?.select(null, false)} />
+                ) : (
+                  <FeatureCard feature={selected} onClose={() => engineRef.current?.select(null, false)} />
+                )
               ) : (
                 <div className="w-[min(320px,100%)] border border-border bg-surface p-5 shadow-md">
                   <Tag className="bg-primary/30 text-foreground">Your next chapter</Tag>
