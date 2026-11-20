@@ -1,5 +1,7 @@
 # Trek data (spreadsheets)
 
+> **The admin panel is now the main way to add and edit this data** (sign in, then open /admin). These CSV files are an optional way to bulk-load or back up data. Importing never deletes records unless you pass `--prune`, so it is safe to use alongside the panel.
+
 Durations, permits and costs come from **CSV files you fill in**, not from code. Every row must say
 where the figure came from and when it was checked. The importer refuses the whole import if any row
 is missing that, so a published number can always be traced to a source.

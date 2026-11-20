@@ -2,10 +2,12 @@
 //
 //   pnpm db:import-trek-data            validate, then import
 //   pnpm db:import-trek-data --dry-run  validate only, write nothing
+//   pnpm db:import-trek-data --prune    also DELETE rows that are not in the files
 //
 // All-or-nothing: if any row in any file is invalid (most importantly: missing source name, source
 // link or verified date) nothing is written and every problem is listed with its file and row.
-// A file that does not exist is skipped; a file that exists is the source of truth for its table.
+// A file that does not exist is skipped. By default rows are only added or updated, so records created
+// in the admin panel are never removed; use --prune only if the CSV files should replace everything.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +18,7 @@ const prisma = new PrismaClient();
 // TREK_DATA_DIR lets you point at another folder (used by tests).
 const DATA_DIR = process.env.TREK_DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
 const DRY_RUN = process.argv.includes("--dry-run") || Boolean(process.env.DRY_RUN);
+const PRUNE = process.argv.includes("--prune");
 
 const SOURCE_COLUMNS = ["sourceName", "sourceUrl", "verifiedAt"];
 const FILES = {
@@ -177,7 +180,7 @@ async function main() {
             "startPlace" = EXCLUDED."startPlace", "endPlace" = EXCLUDED."endPlace", notes = EXCLUDED.notes,
             "sourceName" = EXCLUDED."sourceName", "sourceUrl" = EXCLUDED."sourceUrl", "verifiedAt" = EXCLUDED."verifiedAt", "updatedAt" = now()`;
       }
-      if (treks) await tx.$executeRaw`DELETE FROM "Trek" WHERE slug <> ALL(${treks.map((t) => t.slug)}::text[])`;
+      if (PRUNE && treks) await tx.$executeRaw`DELETE FROM "Trek" WHERE slug <> ALL(${treks.map((t) => t.slug)}::text[])`;
 
       for (const p of permits ?? []) {
         await tx.$executeRaw`
@@ -194,7 +197,7 @@ async function main() {
             SELECT t.id, p.id FROM "Trek" t, "Permit" p WHERE t.slug = ${trekSlug} AND p.slug = ${p.slug}`;
         }
       }
-      if (permits) await tx.$executeRaw`DELETE FROM "Permit" WHERE slug <> ALL(${permits.map((p) => p.slug)}::text[])`;
+      if (PRUNE && permits) await tx.$executeRaw`DELETE FROM "Permit" WHERE slug <> ALL(${permits.map((p) => p.slug)}::text[])`;
 
       for (const c of costs ?? []) {
         await tx.$executeRaw`
@@ -206,7 +209,7 @@ async function main() {
             unit = EXCLUDED.unit, "trekId" = EXCLUDED."trekId", notes = EXCLUDED.notes, "sourceName" = EXCLUDED."sourceName",
             "sourceUrl" = EXCLUDED."sourceUrl", "verifiedAt" = EXCLUDED."verifiedAt", "updatedAt" = now()`;
       }
-      if (costs) await tx.$executeRaw`DELETE FROM "CostItem" WHERE slug <> ALL(${costs.map((c) => c.slug)}::text[])`;
+      if (PRUNE && costs) await tx.$executeRaw`DELETE FROM "CostItem" WHERE slug <> ALL(${costs.map((c) => c.slug)}::text[])`;
     },
     { timeout: 60_000 },
   );
