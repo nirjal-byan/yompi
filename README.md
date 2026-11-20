@@ -125,13 +125,20 @@ pnpm db:build-profiles
 
 This reads open elevation tiles for each trail, joins the OpenStreetMap ways into continuous sections, and stores a profile per section. Re-run it whenever trails are re-imported.
 
-## Durations, permits and costs (your spreadsheets)
+## Admin panel
+
+Add and edit treks, permits and costs at **/admin** (a dashboard with a to-do list, plus simple forms). Only the emails listed in `ADMIN_EMAILS` in `.env` can use it. Sign in with the normal email link (in development, open the link from Mailpit at http://localhost:8025), then use "Open the admin panel" on your adventures page. Every record needs a source link and the date you checked it, and the server enforces that.
+
+Production note: `ADMIN_EMAILS` and a real SMTP server must be configured on the server, otherwise nobody can sign in as admin (it fails closed).
+
+## Durations, permits and costs (CSV import, optional)
 
 These come from CSV files you fill in, and every row must have a source name, a source link and a verified date. See `packages/database/data/README.md` for the columns and rules, then:
 
 ```powershell
 pnpm db:import-trek-data --dry-run   # validate only
-pnpm db:import-trek-data             # validate, then import (all or nothing)
+pnpm db:import-trek-data             # validate, then import (all or nothing; never deletes)
+pnpm db:import-trek-data --prune     # also delete rows that are not in the files
 ```
 
 Nothing is imported if any row is invalid. The trail card shows each figure with its source and check date, plus a difficulty estimate computed from altitude, duration and high passes, with its working shown.
