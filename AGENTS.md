@@ -35,6 +35,13 @@ packages/
 - New packages build to `dist/` via `tsc`; add `tsconfig.json` extending `packages/config/tsconfig.lib.json`.
 - Config comes from the root `.env` (see README). Document every new variable in `.env.example`.
 
+## Code style
+
+- No code comments. Make the code explain itself: descriptive names, small functions, named constants instead of magic numbers.
+- One responsibility per file. Split a file when it does more than one job (data, drawing, input, state, layout).
+- Reusable pieces first: shared helpers and hooks over copy-paste. Keep components presentational and move logic into hooks.
+- Formatting is automatic: `pnpm format` (Prettier, one config for the whole repo). `pnpm format:check` is the check.
+
 ## Commits (Conventional Commits)
 
 Format: `type(scope): imperative summary` - lowercase, no trailing period, <= 72 chars. Body explains why.
