@@ -1,22 +1,18 @@
-import { createHash, randomBytes } from 'node:crypto';
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import {
-  type AuthUser,
-  LOGIN_LINK_TTL_MINUTES,
-  type RequestLinkInput,
-} from '@yompi/shared';
-import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { MailService } from '../../infrastructure/mail/mail.service.js';
-import { isAdminEmail, parseAdminEmails } from './admin-emails.js';
+import { createHash, randomBytes } from "node:crypto";
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { type AuthUser, LOGIN_LINK_TTL_MINUTES, type RequestLinkInput } from "@yompi/shared";
+import { PrismaService } from "../../infrastructure/database/prisma.service.js";
+import { MailService } from "../../infrastructure/mail/mail.service.js";
+import { isAdminEmail, parseAdminEmails } from "./admin-emails.js";
 
-export const SESSION_COOKIE = 'yompi_session';
+export const SESSION_COOKIE = "yompi_session";
 export const SESSION_TTL_DAYS = 30;
-/** Max links emailed to one address per TTL window. */
+
 const MAX_LINKS_PER_WINDOW = 3;
 
-const sha256 = (value: string) => createHash('sha256').update(value).digest('hex');
-const newToken = () => randomBytes(32).toString('base64url');
+const sha256 = (value: string) => createHash("sha256").update(value).digest("hex");
+const newToken = () => randomBytes(32).toString("base64url");
 
 @Injectable()
 export class AuthService {
@@ -28,25 +24,21 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  /**
-   * Emails a one-time sign-in link. Always resolves silently so callers cannot
-   * tell whether an account exists or whether the rate limit was hit.
-   */
   async requestLink(input: RequestLinkInput): Promise<void> {
     const db = this.prisma.client;
     const user = await db.user.findUnique({ where: { email: input.email } });
-    if (input.mode === 'login' && !user) return;
+    if (input.mode === "login" && !user) return;
 
     const windowStart = new Date(Date.now() - LOGIN_LINK_TTL_MINUTES * 60_000);
     const recent = await db.loginToken.count({
       where: { email: input.email, createdAt: { gte: windowStart } },
     });
     if (recent >= MAX_LINKS_PER_WINDOW) {
-      this.logger.warn('Sign-in link rate limit reached for an address');
+      this.logger.warn("Sign-in link rate limit reached for an address");
       return;
     }
 
-    const name = user?.name ?? (input.mode === 'signup' ? input.name : undefined);
+    const name = user?.name ?? (input.mode === "signup" ? input.name : undefined);
     const token = newToken();
     await db.loginToken.create({
       data: {
@@ -57,18 +49,16 @@ export class AuthService {
       },
     });
 
-    const apiUrl = this.config.get<string>('API_PUBLIC_URL') ?? 'http://localhost:3001';
+    const apiUrl = this.config.get<string>("API_PUBLIC_URL") ?? "http://localhost:3001";
     const link = `${apiUrl}/auth/verify?token=${encodeURIComponent(token)}`;
     await this.mail.sendLoginLink(input.email, name ?? input.email, link);
   }
 
-  /** Consumes a sign-in link and opens a session. Returns null for any invalid link. */
   async verifyLink(token: string): Promise<{ sessionToken: string; user: AuthUser } | null> {
     const db = this.prisma.client;
     const row = await db.loginToken.findUnique({ where: { tokenHash: sha256(token) } });
     if (!row || row.usedAt || row.expiresAt < new Date()) return null;
 
-    // Atomic claim: only one request can flip usedAt from null.
     const claimed = await db.loginToken.updateMany({
       where: { id: row.id, usedAt: null },
       data: { usedAt: new Date() },
@@ -78,7 +68,7 @@ export class AuthService {
     const user = await db.user.upsert({
       where: { email: row.email },
       update: {},
-      create: { email: row.email, name: row.name ?? row.email.split('@')[0] },
+      create: { email: row.email, name: row.name ?? row.email.split("@")[0] },
     });
 
     const sessionToken = newToken();
@@ -104,9 +94,8 @@ export class AuthService {
     return { id, email, name, isAdmin: this.isAdmin(email) };
   }
 
-  /** Read each time so a changed ADMIN_EMAILS setting takes effect after a restart without code changes. */
   private isAdmin(email: string): boolean {
-    return isAdminEmail(email, parseAdminEmails(this.config.get<string>('ADMIN_EMAILS')));
+    return isAdminEmail(email, parseAdminEmails(this.config.get<string>("ADMIN_EMAILS")));
   }
 
   async logout(request: { headers: { cookie?: string } }): Promise<void> {
@@ -119,9 +108,9 @@ export class AuthService {
 
 function readCookie(header: string | undefined, name: string): string | undefined {
   if (!header) return undefined;
-  for (const part of header.split(';')) {
-    const [key, ...rest] = part.trim().split('=');
-    if (key === name) return decodeURIComponent(rest.join('='));
+  for (const part of header.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
   }
   return undefined;
 }

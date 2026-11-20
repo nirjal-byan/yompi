@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable } from "@nestjs/common";
 import {
   type CostCategory,
   type CostInfo,
@@ -8,9 +8,9 @@ import {
   type SourceCitation,
   type TrekInfo,
   isStale,
-} from '@yompi/shared';
-import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { estimateDifficulty } from './difficulty.js';
+} from "@yompi/shared";
+import { PrismaService } from "../../infrastructure/database/prisma.service.js";
+import { estimateDifficulty } from "./difficulty.js";
 
 interface SourceColumns {
   sourceName: string;
@@ -50,9 +50,8 @@ interface CostRow extends SourceColumns {
 }
 
 export interface TrekContext {
-  /** Highest point computed from the (possibly partial) mapped trail; used only if the trek has no sourced figure. */
   profileHighestM: number | null;
-  /** Passes above 5,000 m that the route crosses. */
+
   highPassCount: number;
 }
 
@@ -60,7 +59,6 @@ export interface TrekContext {
 export class TreksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** The sourced trek linked to a trail, with its permits, costs and a difficulty estimate. */
   async findByTrailId(trailId: string, context: TrekContext): Promise<TrekInfo | null> {
     const db = this.prisma.client;
     const treks = await db.$queryRaw<TrekRow[]>`
@@ -95,7 +93,6 @@ export class TreksService {
       permits: permits.map(toPermit),
       costs: preferSpecific(costs.map((row) => toCost(row, trek.id))),
       difficulty: estimateDifficulty({
-        // A sourced figure for the whole trek beats the map-derived one, which can miss unmapped parts.
         highestPointM: trek.highestPointM ?? context.profileHighestM,
         maxDays: trek.maxDays,
         highPassCount: context.highPassCount,
@@ -137,7 +134,6 @@ function toCost(row: CostRow, trekId: string): CostInfo {
   };
 }
 
-/** Where a trek has its own rate for a category, drop the general rate for that category. */
 export function preferSpecific(costs: CostInfo[]): CostInfo[] {
   const specific = new Set(costs.filter((c) => c.specific).map((c) => c.category));
   return costs.filter((c) => c.specific || !specific.has(c.category));

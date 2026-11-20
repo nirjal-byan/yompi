@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import nodemailer, { type Transporter } from 'nodemailer';
-import { LOGIN_LINK_TTL_MINUTES } from '@yompi/shared';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import nodemailer, { type Transporter } from "nodemailer";
+import { LOGIN_LINK_TTL_MINUTES } from "@yompi/shared";
 
 @Injectable()
 export class MailService {
@@ -10,18 +10,18 @@ export class MailService {
   private readonly from: string;
 
   constructor(config: ConfigService) {
-    const user = config.get<string>('SMTP_USER');
+    const user = config.get<string>("SMTP_USER");
     this.transporter = nodemailer.createTransport({
-      host: config.get<string>('SMTP_HOST') ?? 'localhost',
-      port: Number(config.get<string>('SMTP_PORT') ?? 1025),
-      secure: config.get<string>('SMTP_SECURE') === 'true',
-      auth: user ? { user, pass: config.get<string>('SMTP_PASSWORD') } : undefined,
+      host: config.get<string>("SMTP_HOST") ?? "localhost",
+      port: Number(config.get<string>("SMTP_PORT") ?? 1025),
+      secure: config.get<string>("SMTP_SECURE") === "true",
+      auth: user ? { user, pass: config.get<string>("SMTP_PASSWORD") } : undefined,
     });
-    this.from = config.get<string>('MAIL_FROM') ?? 'YOMPI <no-reply@yompi.local>';
+    this.from = config.get<string>("MAIL_FROM") ?? "YOMPI <no-reply@yompi.local>";
   }
 
   async sendLoginLink(to: string, name: string, link: string): Promise<void> {
-    const subject = 'Your YOMPI sign-in link';
+    const subject = "Your YOMPI sign-in link";
     const text =
       `Hi ${name},\n\nUse this link to sign in to YOMPI:\n${link}\n\n` +
       `It expires in ${LOGIN_LINK_TTL_MINUTES} minutes and works once. ` +
@@ -41,7 +41,6 @@ export class MailService {
     try {
       await this.transporter.sendMail({ from: this.from, to, subject, text, html });
     } catch (error) {
-      // Never leak mail failures to the caller (it would reveal whether an account exists).
       this.logger.error(`Failed to send sign-in email: ${(error as Error).message}`);
     }
   }

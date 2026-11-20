@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { TreksService } from './treks.service.js';
+import { Module } from "@nestjs/common";
+import { TreksService } from "./treks.service.js";
 
 @Module({
   providers: [TreksService],

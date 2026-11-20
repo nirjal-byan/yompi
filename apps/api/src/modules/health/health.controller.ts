@@ -1,7 +1,7 @@
-import { Controller, Get, ServiceUnavailableException } from '@nestjs/common';
-import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { Controller, Get, ServiceUnavailableException } from "@nestjs/common";
+import { PrismaService } from "../../infrastructure/database/prisma.service.js";
 
-@Controller('health')
+@Controller("health")
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 
@@ -9,9 +9,9 @@ export class HealthController {
   async check() {
     try {
       await this.prisma.client.$queryRaw`SELECT PostGIS_Version()`;
-      return { status: 'ok', database: 'up' };
+      return { status: "ok", database: "up" };
     } catch {
-      throw new ServiceUnavailableException({ status: 'error', database: 'down' });
+      throw new ServiceUnavailableException({ status: "error", database: "down" });
     }
   }
 }

@@ -1,5 +1,5 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import { prisma } from '@yompi/database';
+import { Injectable, OnModuleDestroy } from "@nestjs/common";
+import { prisma } from "@yompi/database";
 
 @Injectable()
 export class PrismaService implements OnModuleDestroy {
