@@ -1,7 +1,7 @@
-import type { AdminResource } from "@yompi/shared";
+import { ADMIN_RESOURCES, type AdminResource } from "@yompi/shared";
 
-/** Everything the admin screens need to know about each kind of record. Add a field here and it appears in the form. */
-export type FieldType = "text" | "textarea" | "number" | "date" | "url" | "select" | "trail" | "trek" | "treks";
+export type FieldType =
+  "text" | "textarea" | "number" | "date" | "url" | "select" | "trail" | "trek" | "treks";
 
 export interface FieldDef {
   name: string;
@@ -23,16 +23,18 @@ export interface ResourceConfig {
   singular: string;
   plural: string;
   intro: string;
-  /** The field that gives a new record its readable name (the id is generated from it). */
+
   nameField: string;
   fields: FieldDef[];
   columns: ColumnDef[];
 }
 
-export const RESOURCES: AdminResource[] = ["treks", "permits", "costs"];
+export const RESOURCES = ADMIN_RESOURCES;
 
-const text = (row: Record<string, unknown>, key: string) => (row[key] === null || row[key] === undefined ? "" : String(row[key]));
-const npr = (row: Record<string, unknown>) => `NPR ${Number(row.amountNpr).toLocaleString("en-US")}`;
+const text = (row: Record<string, unknown>, key: string) =>
+  row[key] === null || row[key] === undefined ? "" : String(row[key]);
+const npr = (row: Record<string, unknown>) =>
+  `NPR ${Number(row.amountNpr).toLocaleString("en-US")}`;
 
 const PERMIT_UNITS = [
   { value: "PER_PERSON", label: "per person" },
@@ -61,7 +63,6 @@ const COST_CATEGORIES = [
 const labelOf = (options: { value: string; label: string }[], value: unknown) =>
   options.find((o) => o.value === value)?.label ?? String(value ?? "");
 
-/** The same three questions for every record: where did this come from, and when did you check it? */
 export const SOURCE_FIELDS: FieldDef[] = [
   {
     name: "sourceName",
@@ -93,19 +94,58 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
     key: "treks",
     singular: "trek",
     plural: "Treks",
-    intro: "A trek's typical duration. Link it to a trail so its details show up when someone clicks that trail on the map.",
+    intro:
+      "A trek's typical duration. Link it to a trail so its details show up when someone clicks that trail on the map.",
     nameField: "name",
     fields: [
-      { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g. Annapurna Circuit" },
-      { name: "slug", label: "Id", type: "text", required: true, help: "Short id used in links (lowercase, dashes). Filled in for you from the name; it cannot be changed later." },
-      { name: "region", label: "Region", type: "text", required: true, placeholder: "e.g. Annapurna" },
-      { name: "trailName", label: "Trail on the map", type: "trail", help: "Optional. Pick the map trail this trek follows. Leave empty for treks that have no line on the map yet." },
-      { name: "minDays", label: "Shortest typical duration (days)", type: "number", required: true },
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Annapurna Circuit",
+      },
+      {
+        name: "slug",
+        label: "Id",
+        type: "text",
+        required: true,
+        help: "Short id used in links (lowercase, dashes). Filled in for you from the name; it cannot be changed later.",
+      },
+      {
+        name: "region",
+        label: "Region",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Annapurna",
+      },
+      {
+        name: "trailName",
+        label: "Trail on the map",
+        type: "trail",
+        help: "Optional. Pick the map trail this trek follows. Leave empty for treks that have no line on the map yet.",
+      },
+      {
+        name: "minDays",
+        label: "Shortest typical duration (days)",
+        type: "number",
+        required: true,
+      },
       { name: "maxDays", label: "Longest typical duration (days)", type: "number", required: true },
-      { name: "highestPointM", label: "Highest point of the whole trek (m)", type: "number", help: "Optional. If you leave it empty, the highest point from the (possibly partial) map trail is used for the difficulty estimate." },
+      {
+        name: "highestPointM",
+        label: "Highest point of the whole trek (m)",
+        type: "number",
+        help: "Optional. If you leave it empty, the highest point from the (possibly partial) map trail is used for the difficulty estimate.",
+      },
       { name: "startPlace", label: "Starts at", type: "text" },
       { name: "endPlace", label: "Ends at", type: "text" },
-      { name: "notes", label: "Notes", type: "textarea", help: "Optional. Anything a visitor should know about these figures." },
+      {
+        name: "notes",
+        label: "Notes",
+        type: "textarea",
+        help: "Optional. Anything a visitor should know about these figures.",
+      },
     ],
     columns: [
       { header: "Name", value: (r) => text(r, "name") },
@@ -121,14 +161,49 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
     intro: "Permits and entry fees, in Nepali rupees. A permit can apply to several treks.",
     nameField: "name",
     fields: [
-      { name: "name", label: "Permit name", type: "text", required: true, placeholder: "e.g. Conservation area entry permit" },
-      { name: "slug", label: "Id", type: "text", required: true, help: "Short id (lowercase, dashes). Filled in for you; it cannot be changed later." },
+      {
+        name: "name",
+        label: "Permit name",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Conservation area entry permit",
+      },
+      {
+        name: "slug",
+        label: "Id",
+        type: "text",
+        required: true,
+        help: "Short id (lowercase, dashes). Filled in for you; it cannot be changed later.",
+      },
       { name: "authority", label: "Issued by", type: "text", required: true },
-      { name: "appliesTo", label: "Where it applies", type: "text", required: true, help: "In words, for example the conservation area or national park." },
-      { name: "amountNpr", label: "Fee (NPR)", type: "number", required: true, help: "Whole rupees, no commas." },
+      {
+        name: "appliesTo",
+        label: "Where it applies",
+        type: "text",
+        required: true,
+        help: "In words, for example the conservation area or national park.",
+      },
+      {
+        name: "amountNpr",
+        label: "Fee (NPR)",
+        type: "number",
+        required: true,
+        help: "Whole rupees, no commas.",
+      },
       { name: "unit", label: "Charged", type: "select", required: true, options: PERMIT_UNITS },
-      { name: "trekSlugs", label: "Applies to these treks", type: "treks", required: true, help: "Tick every trek that needs this permit." },
-      { name: "notes", label: "Notes", type: "textarea", help: "Optional. Conditions such as who it applies to or extra charges." },
+      {
+        name: "trekSlugs",
+        label: "Applies to these treks",
+        type: "treks",
+        required: true,
+        help: "Tick every trek that needs this permit.",
+      },
+      {
+        name: "notes",
+        label: "Notes",
+        type: "textarea",
+        help: "Optional. Conditions such as who it applies to or extra charges.",
+      },
     ],
     columns: [
       { header: "Permit", value: (r) => text(r, "name") },
@@ -140,15 +215,45 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
     key: "costs",
     singular: "cost",
     plural: "Costs",
-    intro: "Typical prices (guides, porters, food, lodging, transport). A rate for one trek replaces the general rate for that category.",
+    intro:
+      "Typical prices (guides, porters, food, lodging, transport). A rate for one trek replaces the general rate for that category.",
     nameField: "label",
     fields: [
-      { name: "label", label: "Description", type: "text", required: true, placeholder: "e.g. Licensed guide" },
-      { name: "slug", label: "Id", type: "text", required: true, help: "Short id (lowercase, dashes). Filled in for you; it cannot be changed later." },
-      { name: "category", label: "Category", type: "select", required: true, options: COST_CATEGORIES },
-      { name: "amountNpr", label: "Price (NPR)", type: "number", required: true, help: "Whole rupees, no commas." },
+      {
+        name: "label",
+        label: "Description",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Licensed guide",
+      },
+      {
+        name: "slug",
+        label: "Id",
+        type: "text",
+        required: true,
+        help: "Short id (lowercase, dashes). Filled in for you; it cannot be changed later.",
+      },
+      {
+        name: "category",
+        label: "Category",
+        type: "select",
+        required: true,
+        options: COST_CATEGORIES,
+      },
+      {
+        name: "amountNpr",
+        label: "Price (NPR)",
+        type: "number",
+        required: true,
+        help: "Whole rupees, no commas.",
+      },
       { name: "unit", label: "Charged", type: "select", required: true, options: COST_UNITS },
-      { name: "trekSlug", label: "Applies to", type: "trek", help: "Leave on 'All treks' for a general rate, or pick one trek for a trek-specific rate." },
+      {
+        name: "trekSlug",
+        label: "Applies to",
+        type: "trek",
+        help: "Leave on 'All treks' for a general rate, or pick one trek for a trek-specific rate.",
+      },
       { name: "notes", label: "Notes", type: "textarea", help: "Optional." },
     ],
     columns: [
@@ -161,10 +266,9 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
 };
 
 export function isResource(value: string): value is AdminResource {
-  return (RESOURCES as string[]).includes(value);
+  return (RESOURCES as readonly string[]).includes(value);
 }
 
-/** "Annapurna Circuit (5,416 m)" -> "annapurna-circuit-5-416-m" */
 export function slugify(value: string): string {
   return value
     .toLowerCase()

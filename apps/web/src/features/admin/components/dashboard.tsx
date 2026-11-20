@@ -30,7 +30,10 @@ export function Dashboard() {
     };
   }, []);
 
-  if (failed) return <p className="text-sm text-muted">We couldn&apos;t load the dashboard. Is the API running?</p>;
+  if (failed)
+    return (
+      <p className="text-sm text-muted">We couldn&apos;t load the dashboard. Is the API running?</p>
+    );
   if (!overview) return <p className="text-sm text-muted">Loading…</p>;
 
   return (
@@ -38,7 +41,8 @@ export function Dashboard() {
       <div>
         <h1 className="font-display text-3xl font-semibold">Welcome back</h1>
         <p className="mt-1 text-sm text-muted">
-          Add the trek details visitors see on the map. Every figure needs a source link and the date you checked it.
+          Add the trek details visitors see on the map. Every figure needs a source link and the
+          date you checked it.
         </p>
       </div>
 
@@ -50,7 +54,9 @@ export function Dashboard() {
                 <p className="font-display text-4xl font-semibold">{overview.counts[key]}</p>
                 <p className="text-sm text-muted">{CONFIGS[key].plural.toLowerCase()} saved</p>
               </div>
-              <span className="flex h-10 w-10 items-center justify-center bg-primary/30"><StatIcon kind={key} /></span>
+              <span className="flex h-10 w-10 items-center justify-center bg-primary/30">
+                <StatIcon kind={key} />
+              </span>
             </div>
             <div className="mt-auto flex gap-2">
               <ButtonLink href={`/admin/${key}/new`} className="h-9 px-3">
@@ -69,7 +75,9 @@ export function Dashboard() {
           To do
         </h2>
         {overview.attention.length === 0 ? (
-          <p className="mt-2 text-sm text-muted">Nothing needs attention. Every trail has details and nothing is out of date.</p>
+          <p className="mt-2 text-sm text-muted">
+            Nothing needs attention. Every trail has details and nothing is out of date.
+          </p>
         ) : (
           <ul className="mt-3 flex flex-col divide-y divide-border-soft border border-border-soft bg-surface">
             {overview.attention.map((item, index) => (
@@ -86,7 +94,9 @@ export function Dashboard() {
                     <span className="font-medium">{item.label}</span>
                     <span className="block text-sm text-muted">{item.message}</span>
                   </span>
-                  <span className="text-sm text-accent underline">{item.slug ? "Open" : "Add details"} →</span>
+                  <span className="text-sm text-accent underline">
+                    {item.slug ? "Open" : "Add details"} →
+                  </span>
                 </Link>
               </li>
             ))}

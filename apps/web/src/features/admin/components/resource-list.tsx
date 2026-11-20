@@ -29,7 +29,8 @@ export function ResourceList({ resource }: { resource: AdminResource }) {
   }, [resource, reload]);
 
   async function remove(row: Row) {
-    if (!window.confirm(`Delete "${String(row[config.nameField])}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${String(row[config.nameField])}"? This cannot be undone.`))
+      return;
     try {
       await adminApi.remove(resource, row.slug);
       setReload((n) => n + 1);
@@ -54,7 +55,10 @@ export function ResourceList({ resource }: { resource: AdminResource }) {
         </p>
       )}
       {error && (
-        <p role="alert" className="border-l-2 border-red-600 bg-red-50 px-4 py-2 text-sm text-red-800">
+        <p
+          role="alert"
+          className="border-l-2 border-red-600 bg-red-50 px-4 py-2 text-sm text-red-800"
+        >
           {error}
         </p>
       )}
@@ -89,7 +93,10 @@ export function ResourceList({ resource }: { resource: AdminResource }) {
                   {config.columns.map((c, i) => (
                     <td key={c.header} className="px-4 py-3">
                       {i === 0 ? (
-                        <Link href={`/admin/${resource}/${row.slug}`} className="font-medium underline">
+                        <Link
+                          href={`/admin/${resource}/${row.slug}`}
+                          className="font-medium underline"
+                        >
                           {c.value(row)}
                         </Link>
                       ) : (
@@ -99,13 +106,23 @@ export function ResourceList({ resource }: { resource: AdminResource }) {
                   ))}
                   <td className="px-4 py-3 whitespace-nowrap">
                     {row.verifiedAt}
-                    {isStale(row.verifiedAt) && <span className="ml-2 bg-primary/30 px-1.5 py-0.5 text-[11px]">re-check</span>}
+                    {isStale(row.verifiedAt) && (
+                      <span className="ml-2 bg-primary/30 px-1.5 py-0.5 text-[11px]">re-check</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right whitespace-nowrap">
-                    <ButtonLink href={`/admin/${resource}/${row.slug}`} variant="outline" className="h-8 px-3">
+                    <ButtonLink
+                      href={`/admin/${resource}/${row.slug}`}
+                      variant="outline"
+                      className="h-8 px-3"
+                    >
                       Edit
                     </ButtonLink>{" "}
-                    <Button variant="outline" className="h-8 px-3 text-red-800" onClick={() => remove(row)}>
+                    <Button
+                      variant="outline"
+                      className="h-8 px-3 text-red-800"
+                      onClick={() => remove(row)}
+                    >
                       Delete
                     </Button>
                   </td>

@@ -1,6 +1,5 @@
 import type { ReactNode, SVGProps } from "react";
 
-/** Small line icons for the admin sidebar. 24px grid, drawn with the current text colour. */
 function Icon({ children, ...props }: SVGProps<SVGSVGElement> & { children: ReactNode }) {
   return (
     <svg
