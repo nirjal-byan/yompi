@@ -10,6 +10,7 @@ import type {
   TrailProfile,
 } from '@yompi/shared';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { TreksService } from '../treks/treks.service.js';
 
 interface FeatureRow {
   id: string;
@@ -25,7 +26,10 @@ interface FeatureRow {
 
 @Injectable()
 export class GeoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly treks: TreksService,
+  ) {}
 
   async listSources(): Promise<GeoSource[]> {
     return this.prisma.client.$queryRaw<GeoSource[]>`
@@ -81,7 +85,15 @@ export class GeoService {
 
     const nearby = row.kind === 'TRAIL' ? await this.nearbyTrail(id) : [];
     const sources = (await this.listSources()).filter((source) => source.key === row.sourceKey);
-    return { feature, profile, nearby, sources };
+    const trek =
+      row.kind === 'TRAIL'
+        ? await this.treks.findByTrailId(id, {
+            profileHighestM: profile?.highestM ?? null,
+            // A pass counts as crossed when the route runs within 1 km of it.
+            highPassCount: nearby.filter((n) => n.kind === 'PASS' && (n.elevationM ?? 0) >= 5000 && n.distanceKm <= 1).length,
+          })
+        : null;
+    return { feature, profile, nearby, sources, trek };
   }
 
   /** Features within a short distance of a trail: passes, gateways and lakes (3 km), peaks (8 km). */
