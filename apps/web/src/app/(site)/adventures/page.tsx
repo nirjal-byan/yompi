@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { ButtonLink } from "@/components/ui/button";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { getCurrentUser } from "@/features/auth/services/session";
 
@@ -15,7 +16,14 @@ async function Adventures() {
       <p className="font-mono text-[11px] uppercase text-accent">My adventures</p>
       <h1 className="font-display text-4xl font-semibold">Welcome, {user.name}.</h1>
       <p className="text-muted">Signed in as {user.email}. Saved trips will appear here.</p>
-      <LogoutButton />
+      <div className="flex flex-wrap items-center gap-3">
+        {user.isAdmin && (
+          <ButtonLink href="/admin" variant="dark">
+            Open the admin panel
+          </ButtonLink>
+        )}
+        <LogoutButton />
+      </div>
     </div>
   );
 }
