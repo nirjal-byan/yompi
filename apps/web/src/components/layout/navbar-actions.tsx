@@ -2,10 +2,6 @@ import { ButtonLink } from "@/components/ui/button";
 import { LogoutButton } from "@/features/auth/components/logout-button";
 import { getCurrentUser } from "@/features/auth/services/session";
 
-/**
- * The right-hand call to action. Visitors who are not signed in see "Sign up"; signed-in users see
- * "Plan a trek" with a small log out button beside it. Reads the session, so it streams in.
- */
 export async function NavbarActions() {
   const user = await getCurrentUser();
 

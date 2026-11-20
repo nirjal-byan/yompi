@@ -92,7 +92,6 @@ export function JoinForm() {
       <p className="text-center text-xs text-muted">or use your email</p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        {/* Always rendered so switching tabs never changes the layout height. */}
         <div className={cn(mode === "login" && "invisible")} inert={mode === "login"}>
           <Field label="Your name" htmlFor="name">
             <Input
@@ -119,11 +118,14 @@ export function JoinForm() {
         </Field>
 
         <Button type="submit" disabled={sending}>
-          {sending ? "Sending…" : mode === "signup" ? "Send me a sign-up link →" : "Send me a login link →"}
+          {sending
+            ? "Sending…"
+            : mode === "signup"
+              ? "Send me a sign-up link →"
+              : "Send me a login link →"}
         </Button>
       </form>
 
-      {/* Fixed-height slot: an error replaces the note instead of pushing content down. */}
       {error ? (
         <p role="alert" className="min-h-9 text-xs text-red-700">
           {error}

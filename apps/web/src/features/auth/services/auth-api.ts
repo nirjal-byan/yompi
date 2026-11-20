@@ -1,7 +1,6 @@
 import type { RequestLinkInput } from "@yompi/shared";
 import { API_URL } from "@/lib/config";
 
-/** Asks the API to email a sign-in link. Returns an error message, or null on success. */
 export async function requestLoginLink(input: RequestLinkInput): Promise<string | null> {
   try {
     const res = await fetch(`${API_URL}/auth/request-link`, {

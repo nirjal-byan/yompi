@@ -1,6 +1,5 @@
 @import "tailwindcss";
 
-/* YOMPI design tokens (from the Figma design) */
 :root {
   --background: #faf6ee;
   --surface: #fffdf8;
