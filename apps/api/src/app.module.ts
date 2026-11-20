@@ -5,6 +5,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { MailModule } from './infrastructure/mail/mail.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { GeoModule } from './modules/geo/geo.module.js';
 import { HealthModule } from './modules/health/health.module.js';
@@ -21,6 +22,7 @@ import { HealthModule } from './modules/health/health.module.js';
     DatabaseModule,
     MailModule,
     AuthModule,
+    AdminModule,
     GeoModule,
     HealthModule,
   ],

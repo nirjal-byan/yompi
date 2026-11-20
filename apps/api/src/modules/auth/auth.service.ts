@@ -8,6 +8,7 @@ import {
 } from '@yompi/shared';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { MailService } from '../../infrastructure/mail/mail.service.js';
+import { isAdminEmail, parseAdminEmails } from './admin-emails.js';
 
 export const SESSION_COOKIE = 'yompi_session';
 export const SESSION_TTL_DAYS = 30;
@@ -100,7 +101,12 @@ export class AuthService {
     });
     if (!session || session.expiresAt < new Date()) return null;
     const { id, email, name } = session.user;
-    return { id, email, name };
+    return { id, email, name, isAdmin: this.isAdmin(email) };
+  }
+
+  /** Read each time so a changed ADMIN_EMAILS setting takes effect after a restart without code changes. */
+  private isAdmin(email: string): boolean {
+    return isAdminEmail(email, parseAdminEmails(this.config.get<string>('ADMIN_EMAILS')));
   }
 
   async logout(request: { headers: { cookie?: string } }): Promise<void> {
