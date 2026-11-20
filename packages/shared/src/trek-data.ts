@@ -204,3 +204,87 @@ export interface TrekInfo {
   costs: CostInfo[];
   difficulty: DifficultyEstimate | null;
 }
+
+// ---- admin panel
+
+export interface FieldError {
+  field: string;
+  message: string;
+}
+
+/**
+ * Validates input against one of the row schemas and reports ONE message per field (the first
+ * problem is the one to fix). Used by the admin API so the form can show errors beside the field.
+ */
+export function validateRow<S extends z.ZodTypeAny>(
+  schema: S,
+  input: unknown,
+): { ok: true; data: z.output<S> } | { ok: false; errors: FieldError[] } {
+  const result = schema.safeParse(input);
+  if (result.success) return { ok: true, data: result.data };
+  const seen = new Set<string>();
+  const errors: FieldError[] = [];
+  for (const issue of result.error.issues) {
+    const field = issue.path.join(".") || "form";
+    if (seen.has(field)) continue;
+    seen.add(field);
+    errors.push({ field, message: issue.message });
+  }
+  return { ok: false, errors };
+}
+
+/** The fields shared by every record the admin edits. `verifiedAt` is YYYY-MM-DD. */
+interface SourcedRecord {
+  sourceName: string;
+  sourceUrl: string;
+  verifiedAt: string;
+}
+
+export interface TrekRecord extends SourcedRecord {
+  slug: string;
+  name: string;
+  region: string;
+  trailName: string | null;
+  minDays: number;
+  maxDays: number;
+  highestPointM: number | null;
+  startPlace: string | null;
+  endPlace: string | null;
+  notes: string | null;
+}
+
+export interface PermitRecord extends SourcedRecord {
+  slug: string;
+  name: string;
+  authority: string;
+  appliesTo: string;
+  amountNpr: number;
+  unit: PermitUnit;
+  trekSlugs: string[];
+  notes: string | null;
+}
+
+export interface CostRecord extends SourcedRecord {
+  slug: string;
+  category: CostCategory;
+  label: string;
+  amountNpr: number;
+  unit: CostUnit;
+  trekSlug: string | null;
+  notes: string | null;
+}
+
+export type AdminResource = "treks" | "permits" | "costs";
+
+export interface AttentionItem {
+  resource: AdminResource;
+  /** Null when the item is something to add rather than something to fix. */
+  slug: string | null;
+  label: string;
+  message: string;
+}
+
+export interface AdminOverview {
+  counts: Record<AdminResource, number>;
+  attention: AttentionItem[];
+}

@@ -19,4 +19,6 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
+  /** True when the email is on the server's admin allowlist. Only used to show or hide admin links. */
+  isAdmin?: boolean;
 }
