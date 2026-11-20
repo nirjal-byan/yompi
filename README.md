@@ -125,6 +125,17 @@ pnpm db:build-profiles
 
 This reads open elevation tiles for each trail, joins the OpenStreetMap ways into continuous sections, and stores a profile per section. Re-run it whenever trails are re-imported.
 
+## Durations, permits and costs (your spreadsheets)
+
+These come from CSV files you fill in, and every row must have a source name, a source link and a verified date. See `packages/database/data/README.md` for the columns and rules, then:
+
+```powershell
+pnpm db:import-trek-data --dry-run   # validate only
+pnpm db:import-trek-data             # validate, then import (all or nothing)
+```
+
+Nothing is imported if any row is invalid. The trail card shows each figure with its source and check date, plus a difficulty estimate computed from altitude, duration and high passes, with its working shown.
+
 The map's terrain is not stored in the database. The browser downloads open elevation tiles (SRTM and GMTED2010 data, via the public AWS Terrain Tiles bucket) and shades them into relief with snow caps above the snow line. This means the map needs an internet connection to show terrain, and the visitor's browser contacts that bucket directly.
 
 ## Prisma commands
