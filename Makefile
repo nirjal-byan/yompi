@@ -1,4 +1,4 @@
-.PHONY: db.build-profiles db.import-geo help setup services.start services.stop services.logs db.migrate db.generate db.studio run run.web run.api build clean
+.PHONY: db.import-trek-data db.build-profiles db.import-geo help setup services.start services.stop services.logs db.migrate db.generate db.studio run run.web run.api build clean
 
 help:
 	@echo "YOMPI Development Commands:"
@@ -53,3 +53,6 @@ db.import-geo:
 
 db.build-profiles:
 	pnpm db:build-profiles
+
+db.import-trek-data:
+	pnpm db:import-trek-data

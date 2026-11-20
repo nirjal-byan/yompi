@@ -21,7 +21,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "db:import-geo": "pnpm --filter @yompi/database run import-geo",
-    "db:build-profiles": "pnpm --filter @yompi/database run build-profiles"
+    "db:build-profiles": "pnpm --filter @yompi/database run build-profiles",
+    "db:import-trek-data": "pnpm --filter @yompi/database run import-trek-data"
   },
   "devDependencies": {
     "turbo": "^2.11.11"
