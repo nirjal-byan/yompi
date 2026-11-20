@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TrekInfo } from "./trek-data.js";
 
 export const GeoFeatureKindSchema = z.enum([
   "COUNTRY_BOUNDARY",
@@ -91,6 +92,8 @@ export interface FeatureDetail {
   profile: TrailProfile | null;
   nearby: NearbyFeature[];
   sources: GeoSource[];
+  /** Sourced durations, permits and costs plus the difficulty estimate, when a trek is linked to this trail. */
+  trek: TrekInfo | null;
 }
 
 export const FeatureIdSchema = z.string().uuid();

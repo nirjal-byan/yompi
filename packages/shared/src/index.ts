@@ -27,3 +27,4 @@ export interface BudgetBreakdown {
   };
 }export * from "./auth.js";
 export * from "./geo.js";
+export * from "./trek-data.js";

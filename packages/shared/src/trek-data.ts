@@ -1,0 +1,206 @@
+import { z } from "zod";
+
+/**
+ * Validation for the trek data spreadsheets (CSV). One rule above all: nothing is accepted
+ * without a source name, a source link and a verified date. These schemas are used by the importer
+ * (to reject bad files before anything is written) and their types by the API.
+ */
+
+export const PermitUnitSchema = z.enum(["PER_PERSON", "PER_PERSON_PER_DAY", "PER_GROUP"]);
+export type PermitUnit = z.infer<typeof PermitUnitSchema>;
+
+export const CostCategorySchema = z.enum([
+  "GUIDE_DAILY",
+  "PORTER_DAILY",
+  "FOOD_DAILY",
+  "LODGING_BUDGET",
+  "LODGING_STANDARD",
+  "LODGING_COMFORT",
+  "TRANSPORT",
+  "OTHER",
+]);
+export type CostCategory = z.infer<typeof CostCategorySchema>;
+
+export const CostUnitSchema = z.enum(["PER_DAY", "PER_NIGHT", "PER_PERSON", "PER_TRIP"]);
+export type CostUnit = z.infer<typeof CostUnitSchema>;
+
+/** Data older than this is still imported but flagged as possibly out of date. */
+export const STALE_AFTER_MONTHS = 18;
+
+// ---- field helpers (CSV cells are always strings; blank means "not provided")
+
+const blankToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
+
+const requiredText = (max = 300) => z.string({ required_error: "required" }).trim().min(1, "required").max(max);
+const optionalText = (max = 600) => z.preprocess(blankToUndefined, z.string().trim().max(max).optional());
+
+const slug = z
+  .string({ required_error: "required" })
+  .trim()
+  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "use lowercase letters, numbers and dashes, e.g. annapurna-circuit");
+
+const wholeNumber = (min: number, max: number) =>
+  z.preprocess(
+    (value) => (blankToUndefined(value) === undefined ? undefined : Number(value)),
+    z
+      .number({ required_error: "required", invalid_type_error: "must be a number" })
+      .int("must be a whole number")
+      .min(min, `must be at least ${min}`)
+      .max(max, `must be at most ${max}`),
+  );
+
+const optionalWholeNumber = (min: number, max: number) =>
+  z.preprocess(
+    (value) => (blankToUndefined(value) === undefined ? undefined : Number(value)),
+    z
+      .number({ invalid_type_error: "must be a number" })
+      .int("must be a whole number")
+      .min(min)
+      .max(max)
+      .optional(),
+  );
+
+const isoDate = z
+  .string({ required_error: "required" })
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD")
+  .refine((value) => !Number.isNaN(Date.parse(value)), "not a real date")
+  .refine((value) => Date.parse(value) <= Date.now() + 86_400_000, "a verified date cannot be in the future");
+
+const sourceUrl = z
+  .string({ required_error: "required" })
+  .trim()
+  .min(1, "required")
+  .url("must be a full link, e.g. https://example.org/page")
+  .refine((value) => /^https?:\/\//i.test(value), "must start with http:// or https://");
+
+/** The three columns every data row must have. */
+const sourceFields = {
+  sourceName: requiredText(200),
+  sourceUrl,
+  verifiedAt: isoDate,
+};
+
+// ---- rows
+
+export const TrekRowSchema = z
+  .object({
+    slug,
+    name: requiredText(120),
+    region: requiredText(80),
+    /** Must match the name of an imported trail exactly. Blank for treks with no mapped trail yet. */
+    trailName: optionalText(200),
+    minDays: wholeNumber(1, 60),
+    maxDays: wholeNumber(1, 60),
+    /** Highest point of the whole trek, from the source. Used for difficulty instead of the partial map data. */
+    highestPointM: optionalWholeNumber(100, 9000),
+    startPlace: optionalText(120),
+    endPlace: optionalText(120),
+    notes: optionalText(),
+    ...sourceFields,
+  })
+  .refine((row) => row.maxDays >= row.minDays, { message: "maxDays cannot be less than minDays", path: ["maxDays"] });
+export type TrekRow = z.infer<typeof TrekRowSchema>;
+
+export const PermitRowSchema = z.object({
+  slug,
+  name: requiredText(160),
+  authority: requiredText(160),
+  /** Where it applies, in words, e.g. the conservation area or national park. */
+  appliesTo: requiredText(200),
+  amountNpr: wholeNumber(0, 10_000_000),
+  unit: PermitUnitSchema,
+  notes: optionalText(),
+  /** Semicolon separated trek slugs, e.g. annapurna-circuit;annapurna-base-camp */
+  trekSlugs: z
+    .string({ required_error: "required" })
+    .trim()
+    .min(1, "list at least one trek slug")
+    .transform((value) => value.split(";").map((part) => part.trim()).filter(Boolean))
+    .pipe(z.array(slug).min(1, "list at least one trek slug")),
+  ...sourceFields,
+});
+export type PermitRow = z.infer<typeof PermitRowSchema>;
+
+export const CostRowSchema = z.object({
+  slug,
+  category: CostCategorySchema,
+  label: requiredText(160),
+  amountNpr: wholeNumber(0, 10_000_000),
+  unit: CostUnitSchema,
+  /** Blank means the figure applies to every trek (a general rate). */
+  trekSlug: z.preprocess(blankToUndefined, slug.optional()),
+  notes: optionalText(),
+  ...sourceFields,
+});
+export type CostRow = z.infer<typeof CostRowSchema>;
+
+/** True when a verified date is older than STALE_AFTER_MONTHS. */
+export function isStale(verifiedAt: string | Date, now = new Date()): boolean {
+  const cutoff = new Date(now);
+  cutoff.setMonth(cutoff.getMonth() - STALE_AFTER_MONTHS);
+  return new Date(verifiedAt) < cutoff;
+}
+
+// ---- what the API returns
+
+export interface SourceCitation {
+  name: string;
+  url: string;
+  /** ISO date (YYYY-MM-DD). */
+  verifiedAt: string;
+  /** True when older than STALE_AFTER_MONTHS. */
+  stale: boolean;
+}
+
+export interface PermitInfo {
+  name: string;
+  authority: string;
+  appliesTo: string;
+  amountNpr: number;
+  unit: PermitUnit;
+  notes: string | null;
+  source: SourceCitation;
+}
+
+export interface CostInfo {
+  category: CostCategory;
+  label: string;
+  amountNpr: number;
+  unit: CostUnit;
+  /** True for a rate that applies to this trek specifically, false for a general rate. */
+  specific: boolean;
+  notes: string | null;
+  source: SourceCitation;
+}
+
+export interface DifficultyFactor {
+  label: string;
+  detail: string;
+  points: number;
+}
+
+/** A transparent estimate, not an expert rating: the factors and points are always shown. */
+export interface DifficultyEstimate {
+  stars: 1 | 2 | 3 | 4 | 5;
+  points: number;
+  maxPoints: number;
+  factors: DifficultyFactor[];
+  caveat: string;
+}
+
+export interface TrekInfo {
+  slug: string;
+  name: string;
+  region: string;
+  minDays: number;
+  maxDays: number;
+  highestPointM: number | null;
+  startPlace: string | null;
+  endPlace: string | null;
+  notes: string | null;
+  source: SourceCitation;
+  permits: PermitInfo[];
+  costs: CostInfo[];
+  difficulty: DifficultyEstimate | null;
+}
