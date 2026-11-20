@@ -1,13 +1,3 @@
-// Imports sourced trek data (durations, permits, costs) from CSV files in packages/database/data.
-//
-//   pnpm db:import-trek-data            validate, then import
-//   pnpm db:import-trek-data --dry-run  validate only, write nothing
-//   pnpm db:import-trek-data --prune    also DELETE rows that are not in the files
-//
-// All-or-nothing: if any row in any file is invalid (most importantly: missing source name, source
-// link or verified date) nothing is written and every problem is listed with its file and row.
-// A file that does not exist is skipped. By default rows are only added or updated, so records created
-// in the admin panel are never removed; use --prune only if the CSV files should replace everything.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,8 +5,10 @@ import { PrismaClient } from "@prisma/client";
 import { CostRowSchema, PermitRowSchema, TrekRowSchema, isStale } from "@yompi/shared";
 
 const prisma = new PrismaClient();
-// TREK_DATA_DIR lets you point at another folder (used by tests).
-const DATA_DIR = process.env.TREK_DATA_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
+
+const DATA_DIR =
+  process.env.TREK_DATA_DIR ??
+  path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "data");
 const DRY_RUN = process.argv.includes("--dry-run") || Boolean(process.env.DRY_RUN);
 const PRUNE = process.argv.includes("--prune");
 
@@ -25,23 +17,51 @@ const FILES = {
   treks: {
     file: "treks.csv",
     schema: TrekRowSchema,
-    columns: ["slug", "name", "region", "trailName", "minDays", "maxDays", "highestPointM", "startPlace", "endPlace", "notes", ...SOURCE_COLUMNS],
+    columns: [
+      "slug",
+      "name",
+      "region",
+      "trailName",
+      "minDays",
+      "maxDays",
+      "highestPointM",
+      "startPlace",
+      "endPlace",
+      "notes",
+      ...SOURCE_COLUMNS,
+    ],
   },
   permits: {
     file: "permits.csv",
     schema: PermitRowSchema,
-    columns: ["slug", "name", "authority", "appliesTo", "amountNpr", "unit", "trekSlugs", "notes", ...SOURCE_COLUMNS],
+    columns: [
+      "slug",
+      "name",
+      "authority",
+      "appliesTo",
+      "amountNpr",
+      "unit",
+      "trekSlugs",
+      "notes",
+      ...SOURCE_COLUMNS,
+    ],
   },
   costs: {
     file: "costs.csv",
     schema: CostRowSchema,
-    columns: ["slug", "category", "label", "amountNpr", "unit", "trekSlug", "notes", ...SOURCE_COLUMNS],
+    columns: [
+      "slug",
+      "category",
+      "label",
+      "amountNpr",
+      "unit",
+      "trekSlug",
+      "notes",
+      ...SOURCE_COLUMNS,
+    ],
   },
 };
 
-// ------------------------------------------------------------------ CSV
-
-/** Minimal RFC 4180 reader: quoted cells, escaped quotes, commas and newlines inside quotes, CRLF, BOM. */
 function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -75,37 +95,38 @@ function parseCsv(text) {
   return rows;
 }
 
-// ------------------------------------------------------------------ validation
-
 const errors = [];
 const warnings = [];
 const fail = (message) => errors.push(message);
 
-/** Reads and validates one file. Returns validated rows (or null if the file does not exist). */
 function readTable(name) {
   const { file, schema, columns } = FILES[name];
   const filePath = path.join(DATA_DIR, file);
   if (!fs.existsSync(filePath)) return null;
 
-  const table = parseCsv(fs.readFileSync(filePath, "utf8")).filter((r) => r.some((c) => c.trim() !== ""));
+  const table = parseCsv(fs.readFileSync(filePath, "utf8")).filter((r) =>
+    r.some((c) => c.trim() !== ""),
+  );
   if (table.length === 0) {
     fail(`${file}: the file is empty (it needs a header row)`);
     return [];
   }
   const header = table[0].map((h) => h.trim());
-  for (const column of columns) if (!header.includes(column)) fail(`${file}: missing column "${column}"`);
-  for (const column of header) if (!columns.includes(column)) fail(`${file}: unknown column "${column}" (typo? see data/templates/${file})`);
+  for (const column of columns)
+    if (!header.includes(column)) fail(`${file}: missing column "${column}"`);
+  for (const column of header)
+    if (!columns.includes(column))
+      fail(`${file}: unknown column "${column}" (typo? see data/templates/${file})`);
   if (errors.some((e) => e.startsWith(`${file}:`))) return [];
 
   const rows = [];
   const seen = new Set();
   table.slice(1).forEach((cells, index) => {
-    const line = index + 2; // 1-based, header is line 1
+    const line = index + 2;
     const raw = Object.fromEntries(header.map((h, i) => [h, (cells[i] ?? "").trim()]));
     const label = `${file} row ${line}${raw.slug ? ` (${raw.slug})` : ""}`;
     const result = schema.safeParse(raw);
     if (!result.success) {
-      // One message per field is enough: the first problem is the one to fix.
       const reported = new Set();
       for (const issue of result.error.issues) {
         const field = issue.path.join(".") || "row";
@@ -117,38 +138,46 @@ function readTable(name) {
     }
     if (seen.has(result.data.slug)) fail(`${label}: duplicate slug "${result.data.slug}"`);
     seen.add(result.data.slug);
-    if (isStale(result.data.verifiedAt)) warnings.push(`${label}: verified ${result.data.verifiedAt}, which is over 18 months ago; consider re-checking`);
+    if (isStale(result.data.verifiedAt))
+      warnings.push(
+        `${label}: verified ${result.data.verifiedAt}, which is over 18 months ago; consider re-checking`,
+      );
     rows.push(result.data);
   });
   return rows;
 }
-
-// ------------------------------------------------------------------ import
 
 async function main() {
   const treks = readTable("treks");
   const permits = readTable("permits");
   const costs = readTable("costs");
   if (!treks && !permits && !costs) {
-    console.log(`No data files found in ${DATA_DIR}. Copy the templates from data/templates and fill them in (see data/README.md).`);
+    console.log(
+      `No data files found in ${DATA_DIR}. Copy the templates from data/templates and fill them in (see data/README.md).`,
+    );
     return;
   }
 
-  // Cross references: trail names must exist as imported trails, and trek slugs must exist.
-  const trailNames = new Set((await prisma.$queryRaw`SELECT name FROM "GeoFeature" WHERE kind = 'TRAIL'`).map((r) => r.name));
+  const trailNames = new Set(
+    (await prisma.$queryRaw`SELECT name FROM "GeoFeature" WHERE kind = 'TRAIL'`).map((r) => r.name),
+  );
   const trekSlugs = treks
     ? new Set(treks.map((t) => t.slug))
     : new Set((await prisma.$queryRaw`SELECT slug FROM "Trek"`).map((r) => r.slug));
   for (const t of treks ?? []) {
     if (t.trailName && !trailNames.has(t.trailName)) {
-      fail(`treks.csv (${t.slug}): trailName "${t.trailName}" is not an imported trail. Known trails: ${[...trailNames].join(", ")}`);
+      fail(
+        `treks.csv (${t.slug}): trailName "${t.trailName}" is not an imported trail. Known trails: ${[...trailNames].join(", ")}`,
+      );
     }
   }
   for (const p of permits ?? []) {
-    for (const slug of p.trekSlugs) if (!trekSlugs.has(slug)) fail(`permits.csv (${p.slug}): unknown trek slug "${slug}"`);
+    for (const slug of p.trekSlugs)
+      if (!trekSlugs.has(slug)) fail(`permits.csv (${p.slug}): unknown trek slug "${slug}"`);
   }
   for (const c of costs ?? []) {
-    if (c.trekSlug && !trekSlugs.has(c.trekSlug)) fail(`costs.csv (${c.slug}): unknown trek slug "${c.trekSlug}"`);
+    if (c.trekSlug && !trekSlugs.has(c.trekSlug))
+      fail(`costs.csv (${c.slug}): unknown trek slug "${c.trekSlug}"`);
   }
 
   for (const warning of warnings) console.log(`warning: ${warning}`);
@@ -180,7 +209,8 @@ async function main() {
             "startPlace" = EXCLUDED."startPlace", "endPlace" = EXCLUDED."endPlace", notes = EXCLUDED.notes,
             "sourceName" = EXCLUDED."sourceName", "sourceUrl" = EXCLUDED."sourceUrl", "verifiedAt" = EXCLUDED."verifiedAt", "updatedAt" = now()`;
       }
-      if (PRUNE && treks) await tx.$executeRaw`DELETE FROM "Trek" WHERE slug <> ALL(${treks.map((t) => t.slug)}::text[])`;
+      if (PRUNE && treks)
+        await tx.$executeRaw`DELETE FROM "Trek" WHERE slug <> ALL(${treks.map((t) => t.slug)}::text[])`;
 
       for (const p of permits ?? []) {
         await tx.$executeRaw`
@@ -197,7 +227,8 @@ async function main() {
             SELECT t.id, p.id FROM "Trek" t, "Permit" p WHERE t.slug = ${trekSlug} AND p.slug = ${p.slug}`;
         }
       }
-      if (PRUNE && permits) await tx.$executeRaw`DELETE FROM "Permit" WHERE slug <> ALL(${permits.map((p) => p.slug)}::text[])`;
+      if (PRUNE && permits)
+        await tx.$executeRaw`DELETE FROM "Permit" WHERE slug <> ALL(${permits.map((p) => p.slug)}::text[])`;
 
       for (const c of costs ?? []) {
         await tx.$executeRaw`
@@ -209,11 +240,14 @@ async function main() {
             unit = EXCLUDED.unit, "trekId" = EXCLUDED."trekId", notes = EXCLUDED.notes, "sourceName" = EXCLUDED."sourceName",
             "sourceUrl" = EXCLUDED."sourceUrl", "verifiedAt" = EXCLUDED."verifiedAt", "updatedAt" = now()`;
       }
-      if (PRUNE && costs) await tx.$executeRaw`DELETE FROM "CostItem" WHERE slug <> ALL(${costs.map((c) => c.slug)}::text[])`;
+      if (PRUNE && costs)
+        await tx.$executeRaw`DELETE FROM "CostItem" WHERE slug <> ALL(${costs.map((c) => c.slug)}::text[])`;
     },
     { timeout: 60_000 },
   );
-  console.log(`Imported ${counts}.${warnings.length ? ` ${warnings.length} warning(s) above.` : ""}`);
+  console.log(
+    `Imported ${counts}.${warnings.length ? ` ${warnings.length} warning(s) above.` : ""}`,
+  );
 }
 
 try {

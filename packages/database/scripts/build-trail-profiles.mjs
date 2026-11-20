@@ -1,19 +1,11 @@
-// Computes real elevation profiles for trails from open elevation data and stores them on each
-// trail (properties.profile). Run after importing trails:
-//
-//   pnpm db:build-profiles
-//
-// Elevation comes from the same open "Terrarium" tiles the map terrain uses (SRTM / GMTED2010,
-// roughly 30 m resolution). Nothing is invented: if a route has a gap in OpenStreetMap, the gap
-// stays a gap and each continuous section gets its own profile.
 import { PrismaClient } from "@prisma/client";
 import { PNG } from "pngjs";
 
 const prisma = new PrismaClient();
-const TILE_ZOOM = 12; // ~34 m per pixel in Nepal, about the native resolution of the data
+const TILE_ZOOM = 12;
 const TILE_PX = 256;
 const SPACING_KM = 0.25;
-const SMOOTH_WINDOW = 5; // samples (1.25 km) - removes DEM noise before counting ascent
+const SMOOTH_WINDOW = 5;
 const MIN_SECTION_KM = 2;
 const JOIN_TOLERANCE_KM = 0.05;
 const METHOD =
@@ -25,13 +17,14 @@ const RAD = Math.PI / 180;
 function distanceKm(a, b) {
   const dLat = (b[1] - a[1]) * RAD;
   const dLon = (b[0] - a[0]) * RAD;
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * RAD) * Math.cos(b[1] * RAD) * Math.sin(dLon / 2) ** 2;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * RAD) * Math.cos(b[1] * RAD) * Math.sin(dLon / 2) ** 2;
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
-const lengthKm = (line) => line.slice(1).reduce((total, point, i) => total + distanceKm(line[i], point), 0);
+const lengthKm = (line) =>
+  line.slice(1).reduce((total, point, i) => total + distanceKm(line[i], point), 0);
 
-/** Joins OSM ways end to end into continuous sections (ways come unordered and in either direction). */
 function chain(lines) {
   const pool = lines.map((line) => line.slice());
   const sections = [];
@@ -48,9 +41,11 @@ function chain(lines) {
         const last = line[line.length - 1];
         let next = null;
         if (distanceKm(tail, first) < JOIN_TOLERANCE_KM) next = current.concat(line.slice(1));
-        else if (distanceKm(tail, last) < JOIN_TOLERANCE_KM) next = current.concat(line.slice(0, -1).reverse());
+        else if (distanceKm(tail, last) < JOIN_TOLERANCE_KM)
+          next = current.concat(line.slice(0, -1).reverse());
         else if (distanceKm(head, last) < JOIN_TOLERANCE_KM) next = line.concat(current.slice(1));
-        else if (distanceKm(head, first) < JOIN_TOLERANCE_KM) next = line.slice().reverse().concat(current.slice(1));
+        else if (distanceKm(head, first) < JOIN_TOLERANCE_KM)
+          next = line.slice().reverse().concat(current.slice(1));
         if (next) {
           current = next;
           pool.splice(i, 1);
@@ -64,7 +59,6 @@ function chain(lines) {
   return sections.sort((a, b) => lengthKm(b) - lengthKm(a));
 }
 
-/** Points spaced `stepKm` apart along a polyline (always includes the last point). */
 function resample(line, stepKm) {
   const out = [line[0]];
   let carry = 0;
@@ -86,8 +80,6 @@ function resample(line, stepKm) {
   return out;
 }
 
-// ---- elevation tiles
-
 const tileCache = new Map();
 
 async function loadTile(x, y) {
@@ -96,7 +88,9 @@ async function loadTile(x, y) {
     tileCache.set(
       key,
       (async () => {
-        const res = await fetch(`https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${TILE_ZOOM}/${x}/${y}.png`);
+        const res = await fetch(
+          `https://s3.amazonaws.com/elevation-tiles-prod/terrarium/${TILE_ZOOM}/${x}/${y}.png`,
+        );
         if (!res.ok) throw new Error(`tile ${key} responded ${res.status}`);
         return PNG.sync.read(Buffer.from(await res.arrayBuffer())).data;
       })(),
@@ -123,7 +117,6 @@ async function pixelElevation(px, py) {
   return data[i] * 256 + data[i + 1] + data[i + 2] / 256 - 32768;
 }
 
-/** Bilinear elevation in metres at a longitude/latitude. */
 async function elevationAt(lon, lat) {
   const [gx, gy] = globalPixel(lon, lat);
   const x0 = Math.floor(gx - 0.5);
@@ -153,7 +146,6 @@ function smooth(values, window) {
 }
 
 async function profileFor(line) {
-  // Oriented west to east so every section reads the same way.
   const oriented = line[0][0] > line[line.length - 1][0] ? line.slice().reverse() : line;
   const samples = resample(oriented, SPACING_KM);
   const raw = [];
@@ -192,7 +184,9 @@ try {
   console.log(`${trails.length} trails to profile`);
 
   for (const trail of trails) {
-    const sections = chain(trail.geometry.coordinates).filter((section) => lengthKm(section) >= MIN_SECTION_KM);
+    const sections = chain(trail.geometry.coordinates).filter(
+      (section) => lengthKm(section) >= MIN_SECTION_KM,
+    );
     const skipped = chain(trail.geometry.coordinates).length - sections.length;
     const profiles = [];
     for (const section of sections) profiles.push(await profileFor(section));

@@ -39,18 +39,17 @@ model Destination {
   tagline            String
   description        String
   maxElevationM      Int
-  difficultyStars    Int // 1-5
-  difficultyCriteria String // Explains terrain, altitude & technical requirements
-  scenicStars        Int // 1-5
+  difficultyStars    Int
+  difficultyCriteria String
+  scenicStars        Int
   standardDays       Int
   bestSeasons        String[]
   permitsRequired    String[]
-  mapSpriteKey       String // Links to PixiJS asset key
-  mapX               Float // Illustrated 2D map X coordinate
-  mapY               Float // Illustrated 2D map Y coordinate
+  mapSpriteKey       String
+  mapX               Float
+  mapY               Float
   coordinates        Unsupported("geometry(Point, 4326)")?
 
-  // Pricing parameters in NPR for accurate group calculations
   permitCostPerPersonNpr    Int
   transportCostPerPersonNpr Int
   guideDailyRateNpr         Int
@@ -107,7 +106,7 @@ model TrailCondition {
   sourceName         String
   sourceUrl          String?
   geographicCoverage String
-  confidenceLevel    String // e.g. "HIGH", "MODERATE", "LOCAL_REPORT"
+  confidenceLevel    String
   reportedAt         DateTime          @default(now())
 
   destinationId String
@@ -123,7 +122,6 @@ model User {
   updatedAt DateTime  @updatedAt
 }
 
-// One-time sign-in link. Only the SHA-256 hash of the token is stored.
 model LoginToken {
   id        String    @id @default(uuid())
   tokenHash String    @unique
@@ -136,7 +134,6 @@ model LoginToken {
   @@index([email, createdAt])
 }
 
-// Server-side session. Only the SHA-256 hash of the cookie token is stored.
 model Session {
   id        String   @id @default(uuid())
   tokenHash String   @unique
@@ -148,8 +145,6 @@ model Session {
   @@index([userId])
 }
 
-// ---- Real-world geodata (drives the Nepal map) ----
-
 enum GeoFeatureKind {
   COUNTRY_BOUNDARY
   PEAK
@@ -160,7 +155,6 @@ enum GeoFeatureKind {
   PASS
 }
 
-// Where a dataset came from. Attribution must be shown wherever the data is displayed.
 model DataSource {
   id          String       @id @default(uuid())
   key         String       @unique
@@ -171,7 +165,6 @@ model DataSource {
   features    GeoFeature[]
 }
 
-// One row per real-world feature, in WGS84 lon/lat. Visual map styling lives in the frontend.
 model GeoFeature {
   id         String                                  @id @default(uuid())
   kind       GeoFeatureKind
@@ -190,10 +183,6 @@ model GeoFeature {
   @@index([kind])
   @@index([geometry], type: Gist)
 }
-
-// ---- Sourced trek data (durations, permits, costs) ----
-// Every row carries where it came from and when it was last verified. Rows are imported from CSV
-// files (packages/database/data) and the importer rejects any row missing a source.
 
 enum PermitUnit {
   PER_PERSON
