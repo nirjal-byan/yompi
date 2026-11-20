@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-/** How long an emailed sign-in link stays valid. */
 export const LOGIN_LINK_TTL_MINUTES = 15;
 
 const EmailSchema = z.string().trim().toLowerCase().email().max(254);
@@ -19,6 +18,6 @@ export interface AuthUser {
   id: string;
   email: string;
   name: string;
-  /** True when the email is on the server's admin allowlist. Only used to show or hide admin links. */
+
   isAdmin?: boolean;
 }

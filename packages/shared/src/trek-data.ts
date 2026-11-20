@@ -1,11 +1,5 @@
 import { z } from "zod";
 
-/**
- * Validation for the trek data spreadsheets (CSV). One rule above all: nothing is accepted
- * without a source name, a source link and a verified date. These schemas are used by the importer
- * (to reject bad files before anything is written) and their types by the API.
- */
-
 export const PermitUnitSchema = z.enum(["PER_PERSON", "PER_PERSON_PER_DAY", "PER_GROUP"]);
 export type PermitUnit = z.infer<typeof PermitUnitSchema>;
 
@@ -24,20 +18,23 @@ export type CostCategory = z.infer<typeof CostCategorySchema>;
 export const CostUnitSchema = z.enum(["PER_DAY", "PER_NIGHT", "PER_PERSON", "PER_TRIP"]);
 export type CostUnit = z.infer<typeof CostUnitSchema>;
 
-/** Data older than this is still imported but flagged as possibly out of date. */
 export const STALE_AFTER_MONTHS = 18;
 
-// ---- field helpers (CSV cells are always strings; blank means "not provided")
+const blankToUndefined = (value: unknown) =>
+  typeof value === "string" && value.trim() === "" ? undefined : value;
 
-const blankToUndefined = (value: unknown) => (typeof value === "string" && value.trim() === "" ? undefined : value);
-
-const requiredText = (max = 300) => z.string({ required_error: "required" }).trim().min(1, "required").max(max);
-const optionalText = (max = 600) => z.preprocess(blankToUndefined, z.string().trim().max(max).optional());
+const requiredText = (max = 300) =>
+  z.string({ required_error: "required" }).trim().min(1, "required").max(max);
+const optionalText = (max = 600) =>
+  z.preprocess(blankToUndefined, z.string().trim().max(max).optional());
 
 const slug = z
   .string({ required_error: "required" })
   .trim()
-  .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, "use lowercase letters, numbers and dashes, e.g. annapurna-circuit");
+  .regex(
+    /^[a-z0-9]+(-[a-z0-9]+)*$/,
+    "use lowercase letters, numbers and dashes, e.g. annapurna-circuit",
+  );
 
 const wholeNumber = (min: number, max: number) =>
   z.preprocess(
@@ -65,7 +62,10 @@ const isoDate = z
   .trim()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "use YYYY-MM-DD")
   .refine((value) => !Number.isNaN(Date.parse(value)), "not a real date")
-  .refine((value) => Date.parse(value) <= Date.now() + 86_400_000, "a verified date cannot be in the future");
+  .refine(
+    (value) => Date.parse(value) <= Date.now() + 86_400_000,
+    "a verified date cannot be in the future",
+  );
 
 const sourceUrl = z
   .string({ required_error: "required" })
@@ -74,49 +74,54 @@ const sourceUrl = z
   .url("must be a full link, e.g. https://example.org/page")
   .refine((value) => /^https?:\/\//i.test(value), "must start with http:// or https://");
 
-/** The three columns every data row must have. */
 const sourceFields = {
   sourceName: requiredText(200),
   sourceUrl,
   verifiedAt: isoDate,
 };
 
-// ---- rows
-
 export const TrekRowSchema = z
   .object({
     slug,
     name: requiredText(120),
     region: requiredText(80),
-    /** Must match the name of an imported trail exactly. Blank for treks with no mapped trail yet. */
+
     trailName: optionalText(200),
     minDays: wholeNumber(1, 60),
     maxDays: wholeNumber(1, 60),
-    /** Highest point of the whole trek, from the source. Used for difficulty instead of the partial map data. */
+
     highestPointM: optionalWholeNumber(100, 9000),
     startPlace: optionalText(120),
     endPlace: optionalText(120),
     notes: optionalText(),
     ...sourceFields,
   })
-  .refine((row) => row.maxDays >= row.minDays, { message: "maxDays cannot be less than minDays", path: ["maxDays"] });
+  .refine((row) => row.maxDays >= row.minDays, {
+    message: "maxDays cannot be less than minDays",
+    path: ["maxDays"],
+  });
 export type TrekRow = z.infer<typeof TrekRowSchema>;
 
 export const PermitRowSchema = z.object({
   slug,
   name: requiredText(160),
   authority: requiredText(160),
-  /** Where it applies, in words, e.g. the conservation area or national park. */
+
   appliesTo: requiredText(200),
   amountNpr: wholeNumber(0, 10_000_000),
   unit: PermitUnitSchema,
   notes: optionalText(),
-  /** Semicolon separated trek slugs, e.g. annapurna-circuit;annapurna-base-camp */
+
   trekSlugs: z
     .string({ required_error: "required" })
     .trim()
     .min(1, "list at least one trek slug")
-    .transform((value) => value.split(";").map((part) => part.trim()).filter(Boolean))
+    .transform((value) =>
+      value
+        .split(";")
+        .map((part) => part.trim())
+        .filter(Boolean),
+    )
     .pipe(z.array(slug).min(1, "list at least one trek slug")),
   ...sourceFields,
 });
@@ -128,28 +133,25 @@ export const CostRowSchema = z.object({
   label: requiredText(160),
   amountNpr: wholeNumber(0, 10_000_000),
   unit: CostUnitSchema,
-  /** Blank means the figure applies to every trek (a general rate). */
+
   trekSlug: z.preprocess(blankToUndefined, slug.optional()),
   notes: optionalText(),
   ...sourceFields,
 });
 export type CostRow = z.infer<typeof CostRowSchema>;
 
-/** True when a verified date is older than STALE_AFTER_MONTHS. */
 export function isStale(verifiedAt: string | Date, now = new Date()): boolean {
   const cutoff = new Date(now);
   cutoff.setMonth(cutoff.getMonth() - STALE_AFTER_MONTHS);
   return new Date(verifiedAt) < cutoff;
 }
 
-// ---- what the API returns
-
 export interface SourceCitation {
   name: string;
   url: string;
-  /** ISO date (YYYY-MM-DD). */
+
   verifiedAt: string;
-  /** True when older than STALE_AFTER_MONTHS. */
+
   stale: boolean;
 }
 
@@ -168,7 +170,7 @@ export interface CostInfo {
   label: string;
   amountNpr: number;
   unit: CostUnit;
-  /** True for a rate that applies to this trek specifically, false for a general rate. */
+
   specific: boolean;
   notes: string | null;
   source: SourceCitation;
@@ -180,7 +182,6 @@ export interface DifficultyFactor {
   points: number;
 }
 
-/** A transparent estimate, not an expert rating: the factors and points are always shown. */
 export interface DifficultyEstimate {
   stars: 1 | 2 | 3 | 4 | 5;
   points: number;
@@ -205,17 +206,11 @@ export interface TrekInfo {
   difficulty: DifficultyEstimate | null;
 }
 
-// ---- admin panel
-
 export interface FieldError {
   field: string;
   message: string;
 }
 
-/**
- * Validates input against one of the row schemas and reports ONE message per field (the first
- * problem is the one to fix). Used by the admin API so the form can show errors beside the field.
- */
 export function validateRow<S extends z.ZodTypeAny>(
   schema: S,
   input: unknown,
@@ -233,7 +228,6 @@ export function validateRow<S extends z.ZodTypeAny>(
   return { ok: false, errors };
 }
 
-/** The fields shared by every record the admin edits. `verifiedAt` is YYYY-MM-DD. */
 interface SourcedRecord {
   sourceName: string;
   sourceUrl: string;
@@ -274,11 +268,12 @@ export interface CostRecord extends SourcedRecord {
   notes: string | null;
 }
 
-export type AdminResource = "treks" | "permits" | "costs";
+export const ADMIN_RESOURCES = ["treks", "permits", "costs"] as const;
+export type AdminResource = (typeof ADMIN_RESOURCES)[number];
 
 export interface AttentionItem {
   resource: AdminResource;
-  /** Null when the item is something to add rather than something to fix. */
+
   slug: string | null;
   label: string;
   message: string;
