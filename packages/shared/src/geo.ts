@@ -56,3 +56,41 @@ export interface GeoFeatureCollection {
   features: GeoFeature[];
   sources: GeoSource[];
 }
+
+/** One continuous mapped stretch of a trail. Elevations are metres, spaced `spacingKm` apart. */
+export interface TrailProfileSection {
+  lengthKm: number;
+  elevationsM: number[];
+}
+
+/** Real elevation profile computed from open elevation data (see `method`). */
+export interface TrailProfile {
+  method: string;
+  spacingKm: number;
+  sections: TrailProfileSection[];
+  highestM: number;
+  /** [longitude, latitude] of the highest sampled point. */
+  highestAt: [number, number];
+  lowestM: number;
+  ascentM: number;
+  descentM: number;
+}
+
+export interface NearbyFeature {
+  id: string;
+  kind: GeoFeatureKind;
+  name: string;
+  elevationM: number | null;
+  /** Straight-line distance from the trail, in kilometres. */
+  distanceKm: number;
+}
+
+/** Everything the UI needs to describe one feature in detail. */
+export interface FeatureDetail {
+  feature: GeoFeature;
+  profile: TrailProfile | null;
+  nearby: NearbyFeature[];
+  sources: GeoSource[];
+}
+
+export const FeatureIdSchema = z.string().uuid();
