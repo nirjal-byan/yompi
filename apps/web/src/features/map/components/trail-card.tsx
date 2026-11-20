@@ -6,6 +6,7 @@ import type { GeoFeature, NearbyFeature } from "@yompi/shared";
 import { cn } from "@/lib/cn";
 import { KIND_LABEL, METERS_TO_FEET } from "../constants";
 import { useFeatureDetail } from "../hooks/use-feature-detail";
+import { TrekPlanning } from "./trek-info";
 
 // Recharts is heavy: it is downloaded only when someone opens a trail.
 const ElevationChart = dynamic(() => import("./elevation-chart"), {
@@ -74,6 +75,8 @@ export function TrailCard({ feature, onClose }: { feature: GeoFeature; onClose: 
           parts only, not the whole trek.
         </p>
       )}
+
+      <TrekPlanning trek={detail?.trek ?? null} loaded={!!detail} />
 
       {loading && <div className="mt-4 h-[150px] animate-pulse bg-surface-muted" aria-label="Loading elevation profile" />}
       {failed && <p className="mt-4 text-sm text-muted">We couldn&apos;t load this trail&apos;s elevation profile.</p>}
