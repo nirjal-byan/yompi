@@ -22,9 +22,12 @@
     "docker:logs": "docker compose logs -f",
     "db:import-geo": "pnpm --filter @yompi/database run import-geo",
     "db:build-profiles": "pnpm --filter @yompi/database run build-profiles",
-    "db:import-trek-data": "pnpm --filter @yompi/database run import-trek-data"
+    "db:import-trek-data": "pnpm --filter @yompi/database run import-trek-data",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "prettier": "^3.10.1",
     "turbo": "^2.11.11"
   },
   "devEngines": {

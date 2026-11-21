@@ -175,6 +175,9 @@ importers:
 
   .:
     devDependencies:
+      prettier:
+        specifier: ^3.10.1
+        version: 3.10.1
       turbo:
         specifier: ^2.11.11
         version: 2.11.11
