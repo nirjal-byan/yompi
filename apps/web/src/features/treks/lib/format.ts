@@ -9,3 +9,11 @@ export function formatRoute({ startPlace, endPlace }: TrekSummary): string | nul
 
   return places.length ? places.join(" → ") : null;
 }
+
+export function formatNpr(amount: number): string {
+  return `NPR ${amount.toLocaleString("en-US")}`;
+}
+
+export function formatMetres(metres: number): string {
+  return `${metres.toLocaleString("en-US")} m`;
+}
