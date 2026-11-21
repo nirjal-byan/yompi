@@ -206,6 +206,18 @@ export interface TrekInfo {
   difficulty: DifficultyEstimate | null;
 }
 
+export interface TrekSummary {
+  slug: string;
+  name: string;
+  region: string;
+  minDays: number;
+  maxDays: number;
+  highestPointM: number | null;
+  startPlace: string | null;
+  endPlace: string | null;
+  trailId: string | null;
+}
+
 export interface FieldError {
   field: string;
   message: string;

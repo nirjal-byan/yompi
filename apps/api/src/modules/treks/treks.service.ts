@@ -7,6 +7,7 @@ import {
   type PermitUnit,
   type SourceCitation,
   type TrekInfo,
+  type TrekSummary,
   isStale,
 } from "@yompi/shared";
 import { PrismaService } from "../../infrastructure/database/prisma.service.js";
@@ -58,6 +59,23 @@ export interface TrekContext {
 @Injectable()
 export class TreksService {
   constructor(private readonly prisma: PrismaService) {}
+
+  listSummaries(): Promise<TrekSummary[]> {
+    return this.prisma.client.trek.findMany({
+      select: {
+        slug: true,
+        name: true,
+        region: true,
+        minDays: true,
+        maxDays: true,
+        highestPointM: true,
+        startPlace: true,
+        endPlace: true,
+        trailId: true,
+      },
+      orderBy: { name: "asc" },
+    });
+  }
 
   async findByTrailId(trailId: string, context: TrekContext): Promise<TrekInfo | null> {
     const db = this.prisma.client;
