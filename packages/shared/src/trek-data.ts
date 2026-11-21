@@ -215,7 +215,9 @@ export interface TrekSummary {
   highestPointM: number | null;
   startPlace: string | null;
   endPlace: string | null;
+  notes: string | null;
   trailId: string | null;
+  estimatedCostNpr: number | null;
 }
 
 export interface FieldError {

@@ -11,6 +11,7 @@ import {
   isStale,
 } from "@yompi/shared";
 import { PrismaService } from "../../infrastructure/database/prisma.service.js";
+import { estimateCostPerPerson } from "./trek-cost.js";
 import { estimateDifficulty } from "./difficulty.js";
 
 interface SourceColumns {
@@ -60,21 +61,40 @@ export interface TrekContext {
 export class TreksService {
   constructor(private readonly prisma: PrismaService) {}
 
-  listSummaries(): Promise<TrekSummary[]> {
-    return this.prisma.client.trek.findMany({
-      select: {
-        slug: true,
-        name: true,
-        region: true,
-        minDays: true,
-        maxDays: true,
-        highestPointM: true,
-        startPlace: true,
-        endPlace: true,
-        trailId: true,
-      },
-      orderBy: { name: "asc" },
-    });
+  async listSummaries(): Promise<TrekSummary[]> {
+    const [treks, costs] = await Promise.all([
+      this.prisma.client.trek.findMany({
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          region: true,
+          minDays: true,
+          maxDays: true,
+          highestPointM: true,
+          startPlace: true,
+          endPlace: true,
+          notes: true,
+          trailId: true,
+          permits: { select: { permit: { select: { amountNpr: true, unit: true } } } },
+        },
+        orderBy: { name: "asc" },
+      }),
+      this.prisma.client.costItem.findMany({
+        select: { trekId: true, category: true, amountNpr: true, unit: true },
+      }),
+    ]);
+
+    return treks.map(({ id, permits, ...trek }) => ({
+      ...trek,
+      estimatedCostNpr: estimateCostPerPerson({
+        days: trek.minDays,
+        permits: permits.map(({ permit }) => permit),
+        costs: costs
+          .filter((cost) => cost.trekId === id || cost.trekId === null)
+          .map((cost) => ({ ...cost, specific: cost.trekId === id })),
+      }),
+    }));
   }
 
   async findByTrailId(trailId: string, context: TrekContext): Promise<TrekInfo | null> {
