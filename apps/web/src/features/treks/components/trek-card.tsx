@@ -1,31 +1,36 @@
-import Link from "next/link";
 import type { TrekSummary } from "@yompi/shared";
-import { Tag } from "@/components/ui/tag";
-import { formatDays, formatRoute } from "../lib/format";
+import { cn } from "@/lib/cn";
+import { formatDays, formatMetres, formatNpr, formatRoute } from "../lib/format";
 
-export function TrekCard({ trek }: { trek: TrekSummary }) {
+interface TrekCardProps {
+  trek: TrekSummary;
+  selected: boolean;
+  onSelect: () => void;
+}
+
+export function TrekCard({ trek, selected, onSelect }: TrekCardProps) {
   const route = formatRoute(trek);
+  const facts = [formatDays(trek), trek.highestPointM && formatMetres(trek.highestPointM)];
 
   return (
-    <Link
-      href={`/treks/${trek.slug}`}
-      className="flex flex-col gap-3 border border-border-soft bg-surface p-5 transition-colors hover:bg-surface-muted"
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        "flex h-[210px] w-full flex-col overflow-hidden gap-2 border bg-surface p-5 text-left transition-colors hover:bg-surface-muted",
+        selected ? "border-foreground" : "border-border-soft",
+      )}
     >
-      <Tag className="self-start">{trek.region}</Tag>
-      <h2 className="font-display text-2xl font-semibold">{trek.name}</h2>
-      <dl className="flex gap-6 text-sm">
-        <div>
-          <dt className="font-mono text-[10px] text-muted uppercase">Duration</dt>
-          <dd className="font-semibold">{formatDays(trek)}</dd>
-        </div>
-        {trek.highestPointM && (
-          <div>
-            <dt className="font-mono text-[10px] text-muted uppercase">Highest point</dt>
-            <dd className="font-semibold">{trek.highestPointM.toLocaleString("en-US")} m</dd>
-          </div>
+      <span className="font-mono text-[10px] text-accent uppercase">{trek.region}</span>
+      <h3 className="line-clamp-2 font-display text-2xl font-semibold">{trek.name}</h3>
+      {route && <p className="truncate text-sm text-muted">{route}</p>}
+      <p className="mt-auto flex flex-col gap-1 pt-4 text-sm">
+        <span className="text-muted">{facts.filter(Boolean).join(" / ")}</span>
+        {trek.estimatedCostNpr && (
+          <span className="font-semibold">From {formatNpr(trek.estimatedCostNpr)} / person</span>
         )}
-      </dl>
-      {route && <p className="text-xs text-muted">{route}</p>}
-    </Link>
+      </p>
+    </button>
   );
 }
