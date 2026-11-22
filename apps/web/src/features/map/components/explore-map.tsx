@@ -21,6 +21,7 @@ export function ExploreMap() {
     retry,
     layers,
     toggleLayer,
+    showAllLayers,
     selected,
     searchableFeatures,
     selectFeature,
@@ -46,7 +47,7 @@ export function ExploreMap() {
         <MapSearch features={searchableFeatures} onPick={(feature) => selectFeature(feature.id)} />
       </div>
 
-      <LayerChips layers={layers} onToggle={toggleLayer} />
+      <LayerChips layers={layers} onToggle={toggleLayer} onShowAll={showAllLayers} />
 
       <section className="relative h-[calc(100dvh-380px)] min-h-[460px] overflow-hidden border border-border bg-[#f1ebdc]">
         <div ref={hostRef} className="absolute inset-0" />

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { GeoFeature, GeoFeatureCollection } from "@yompi/shared";
-import { ALL_LAYERS_ON } from "../lib/engine/layers";
+import { ALL_LAYERS_ON, showAllFeatures, toggleLayer as nextLayers } from "../lib/engine/layers";
 import type { MapLayers, NepalMapEngine } from "../lib/map-engine";
 import { getGeoFeatures } from "../services/geo-api";
 
@@ -63,12 +63,14 @@ export function useMapEngine() {
     [data],
   );
 
-  function toggleLayer(key: keyof MapLayers) {
-    const next = { ...layersRef.current, [key]: !layersRef.current[key] };
+  function applyLayers(next: MapLayers) {
     layersRef.current = next;
     setLayers(next);
     engineRef.current?.setLayers(next);
   }
+
+  const toggleLayer = (key: keyof MapLayers) => applyLayers(nextLayers(layersRef.current, key));
+  const showAllLayers = () => applyLayers(showAllFeatures(layersRef.current));
 
   function retry() {
     setFailed(false);
@@ -82,6 +84,7 @@ export function useMapEngine() {
     retry,
     layers,
     toggleLayer,
+    showAllLayers,
     selected,
     searchableFeatures,
     selectFeature: (id: string) => engineRef.current?.select(id, true),
