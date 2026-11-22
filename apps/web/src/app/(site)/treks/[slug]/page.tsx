@@ -16,7 +16,7 @@ async function TrekDetails({ params }: TrekPageProps) {
   const trek = treks.find((candidate) => candidate.slug === slug);
   if (!trek) notFound();
 
-  const info = await getTrekInfo(trek.trailId).catch(() => null);
+  const info = await getTrekInfo(trek.slug).catch(() => null);
 
   return <TrekDetail trek={trek} info={info} />;
 }

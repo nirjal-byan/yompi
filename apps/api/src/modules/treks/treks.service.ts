@@ -57,6 +57,8 @@ export interface TrekContext {
   highPassCount: number;
 }
 
+const NO_TRAIL_CONTEXT: TrekContext = { profileHighestM: null, highPassCount: 0 };
+
 @Injectable()
 export class TreksService {
   constructor(private readonly prisma: PrismaService) {}
@@ -98,13 +100,25 @@ export class TreksService {
   }
 
   async findByTrailId(trailId: string, context: TrekContext): Promise<TrekInfo | null> {
-    const db = this.prisma.client;
-    const treks = await db.$queryRaw<TrekRow[]>`
+    const treks = await this.prisma.client.$queryRaw<TrekRow[]>`
       SELECT id, slug, name, region, "minDays", "maxDays", "highestPointM", "startPlace", "endPlace", notes,
              "sourceName", "sourceUrl", "verifiedAt"
       FROM "Trek" WHERE "trailId" = ${trailId} LIMIT 1`;
-    if (treks.length === 0) return null;
-    const trek = treks[0];
+
+    return treks.length ? this.buildInfo(treks[0], context) : null;
+  }
+
+  async findBySlug(slug: string): Promise<TrekInfo | null> {
+    const treks = await this.prisma.client.$queryRaw<TrekRow[]>`
+      SELECT id, slug, name, region, "minDays", "maxDays", "highestPointM", "startPlace", "endPlace", notes,
+             "sourceName", "sourceUrl", "verifiedAt"
+      FROM "Trek" WHERE slug = ${slug} LIMIT 1`;
+
+    return treks.length ? this.buildInfo(treks[0], NO_TRAIL_CONTEXT) : null;
+  }
+
+  private async buildInfo(trek: TrekRow, context: TrekContext): Promise<TrekInfo> {
+    const db = this.prisma.client;
 
     const permits = await db.$queryRaw<PermitRow[]>`
       SELECT p.name, p.authority, p."appliesTo", p."amountNpr", p.unit::text AS unit, p.notes,
