@@ -1,5 +1,6 @@
 import type { GeoFeature } from "@yompi/shared";
 import { KIND_LABEL, METERS_TO_FEET } from "../constants";
+import { PeakFactBox } from "./peak-facts";
 
 export function FeatureCard({ feature, onClose }: { feature: GeoFeature; onClose: () => void }) {
   const { kind, name, nameLocal, elevationM, details } = feature.properties;
@@ -36,6 +37,8 @@ export function FeatureCard({ feature, onClose }: { feature: GeoFeature; onClose
           </span>
         </p>
       )}
+
+      {kind === "PEAK" && <PeakFactBox name={name} mapElevationM={elevationM} />}
 
       {kind === "TRAIL" && mappedKm !== null && (
         <p className="mt-3 text-sm">

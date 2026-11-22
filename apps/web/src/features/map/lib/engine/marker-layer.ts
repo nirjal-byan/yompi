@@ -1,6 +1,8 @@
 import { Container, Graphics, Text } from "pixi.js";
 import {
   COLORS,
+  EIGHT_THOUSANDER_ELEVATION_M,
+  EVEREST_NAME,
   GATEWAY_VISIBLE_FROM_ZOOM,
   HIGH_PEAK_ELEVATION_M,
   LABEL_FONT_SIZE,
@@ -68,9 +70,19 @@ function isHighPeak(marker: Marker): boolean {
   return marker.kind === "PEAK" && marker.elevationM >= HIGH_PEAK_ELEVATION_M;
 }
 
+function isGiantPeak(marker: Marker): boolean {
+  return marker.kind === "PEAK" && marker.elevationM >= EIGHT_THOUSANDER_ELEVATION_M;
+}
+
+function isEverest(marker: Marker): boolean {
+  return marker.kind === "PEAK" && marker.name === EVEREST_NAME;
+}
+
 function labelRank(marker: Marker, selectedId: string | null, hovered: Marker | null): number {
   if (marker.id === selectedId) return 0;
   if (marker === hovered) return 1;
+  if (isEverest(marker)) return 1.5;
+  if (isGiantPeak(marker)) return 1.8;
   if (PRIORITY_PLACES.has(marker.name)) return 2;
   if (marker.kind === "CITY") return 3;
   if (isHighPeak(marker)) return 4;
@@ -84,10 +96,67 @@ function labelText(marker: Marker): string {
 
   const showsElevation = marker.kind === "PEAK" || marker.kind === "LAKE" || marker.kind === "PASS";
   if (showsElevation && marker.elevationM > 0) {
-    return `${marker.name} ${marker.elevationM.toLocaleString("en-US")} m`;
+    const height = `${marker.name} ${marker.elevationM.toLocaleString("en-US")} m`;
+
+    return isEverest(marker) ? `${height} - top of the world` : height;
   }
 
   return marker.name;
+}
+
+function drawPeak(
+  graphics: Graphics,
+  marker: Marker,
+  scale: number,
+  outline: { width: number; color: number; join: "round" },
+): void {
+  const { screenX: x, screenY: y } = marker;
+  const size = marker.radius * scale;
+  const triangle = [
+    x,
+    y - size,
+    x + size * 1.05,
+    y + size * 0.75,
+    x - size * 1.05,
+    y + size * 0.75,
+  ];
+
+  if (isEverest(marker)) {
+    graphics
+      .circle(x, y + size * 0.1, size * 1.35)
+      .fill({ color: COLORS.paper, alpha: 0.9 })
+      .stroke({ width: 2, color: COLORS.peakEverest });
+    graphics
+      .poly(triangle, true)
+      .fill({ color: COLORS.peakEverest })
+      .stroke({ ...outline, width: 2.5 });
+    graphics
+      .poly([x, y - size, x + size * 0.38, y - size * 0.35, x - size * 0.38, y - size * 0.35], true)
+      .fill({ color: COLORS.snow });
+    graphics
+      .star(x, y - size * 1.75, 5, size * 0.55, size * 0.25)
+      .fill({ color: COLORS.peakEverest })
+      .stroke(outline);
+
+    return;
+  }
+
+  if (isGiantPeak(marker)) {
+    graphics
+      .poly(triangle, true)
+      .fill({ color: COLORS.peakGiant })
+      .stroke({ ...outline, width: 2 });
+    graphics
+      .poly([x, y - size, x + size * 0.34, y - size * 0.4, x - size * 0.34, y - size * 0.4], true)
+      .fill({ color: COLORS.snow });
+
+    return;
+  }
+
+  graphics
+    .poly(triangle, true)
+    .fill({ color: isHighPeak(marker) ? COLORS.peakHigh : COLORS.peak })
+    .stroke(outline);
 }
 
 function drawMarkerShape(graphics: Graphics, marker: Marker, scale: number): void {
@@ -97,13 +166,7 @@ function drawMarkerShape(graphics: Graphics, marker: Marker, scale: number): voi
 
   switch (marker.kind) {
     case "PEAK":
-      graphics
-        .poly(
-          [x, y - size, x + size * 1.05, y + size * 0.75, x - size * 1.05, y + size * 0.75],
-          true,
-        )
-        .fill({ color: isHighPeak(marker) ? COLORS.peakHigh : COLORS.peak })
-        .stroke(outline);
+      drawPeak(graphics, marker, scale, outline);
       break;
     case "LAKE":
       graphics.circle(x, y, size).fill({ color: COLORS.lake }).stroke(outline);

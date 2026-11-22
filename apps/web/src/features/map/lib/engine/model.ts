@@ -1,6 +1,12 @@
 import type { GeoFeature, GeoFeatureCollection } from "@yompi/shared";
 import { type Bounds, SPACE, emptyBounds, extendBounds, project } from "../projection";
-import { HIGH_PEAK_ELEVATION_M } from "./constants";
+import {
+  EIGHT_THOUSANDER_ELEVATION_M,
+  EVEREST_NAME,
+  EVEREST_RADIUS,
+  GIANT_PEAK_RADIUS,
+  HIGH_PEAK_ELEVATION_M,
+} from "./constants";
 import type { MapItem, MapLayers, MapModel, Marker, MarkerKind, TrailModel } from "./types";
 
 function projectToScene(coordinates: number[][], ...boundsToExtend: Bounds[]): number[] {
@@ -15,9 +21,12 @@ function projectToScene(coordinates: number[][], ...boundsToExtend: Bounds[]): n
   return points;
 }
 
-function markerRadius(kind: MarkerKind, elevationM: number): number {
+function markerRadius(kind: MarkerKind, elevationM: number, name = ""): number {
   switch (kind) {
     case "PEAK":
+      if (name === EVEREST_NAME) return EVEREST_RADIUS;
+      if (elevationM >= EIGHT_THOUSANDER_ELEVATION_M) return GIANT_PEAK_RADIUS;
+
       return elevationM >= HIGH_PEAK_ELEVATION_M ? 9 : 6.5;
     case "CITY":
     case "LAKE":
@@ -81,7 +90,7 @@ function buildPlaceMarker(feature: GeoFeature): Marker {
     elevationM: elevation,
     x,
     y,
-    radius: markerRadius(kind as MarkerKind, elevation),
+    radius: markerRadius(kind as MarkerKind, elevation, name),
     screenX: 0,
     screenY: 0,
   };

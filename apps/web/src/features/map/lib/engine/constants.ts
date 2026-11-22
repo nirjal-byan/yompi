@@ -8,10 +8,17 @@ export const COLORS = {
   trail: 0xffb43e,
   peak: 0x8a6a5c,
   peakHigh: 0xffb43e,
+  peakGiant: 0xb23a2e,
+  peakEverest: 0xffd34e,
+  snow: 0xffffff,
   lake: 0x4f9fc6,
 };
 
 export const HIGH_PEAK_ELEVATION_M = 6000;
+export const EIGHT_THOUSANDER_ELEVATION_M = 8000;
+export const EVEREST_NAME = "Mount Everest";
+export const GIANT_PEAK_RADIUS = 12;
+export const EVEREST_RADIUS = 16;
 export const PRIORITY_PLACES = new Set(["Kathmandu", "Pokhara"]);
 
 export const MAX_LABELS = 70;
