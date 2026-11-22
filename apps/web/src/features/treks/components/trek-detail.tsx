@@ -2,6 +2,7 @@ import type { TrekInfo, TrekSummary } from "@yompi/shared";
 import { Tag } from "@/components/ui/tag";
 import { formatDays, formatMetres } from "../lib/format";
 import { findTrekImage } from "../lib/trek-image";
+import { BudgetCalculator } from "./budget-calculator";
 import { BreadcrumbTrail } from "./breadcrumb-trail";
 import { CostList } from "./cost-list";
 import { DifficultyPanel } from "./difficulty-panel";
@@ -101,6 +102,12 @@ export function TrekDetail({ trek, info }: TrekDetailProps) {
           {info && info.costs.length > 0 && (
             <Section title="Typical costs">
               <CostList costs={info.costs} />
+            </Section>
+          )}
+
+          {info && (info.permits.length > 0 || info.costs.length > 0) && (
+            <Section title="Plan your budget">
+              <BudgetCalculator trek={info} />
             </Section>
           )}
 
