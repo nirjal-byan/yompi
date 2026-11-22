@@ -3,7 +3,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { formatDays, formatMetres, formatNpr, formatRoute } from "../lib/format";
 import { TrekPhoto } from "./trek-photo";
 
-export const PREVIEW_HEIGHT_CLASS = "lg:h-[380px]";
+export const PREVIEW_HEIGHT_CLASS = "lg:h-[440px]";
 const MISSING_VALUE = "—";
 
 interface TrekPreviewProps {
@@ -36,7 +36,7 @@ export function TrekPreview({ trek, imageSrc }: TrekPreviewProps) {
       <div className="flex min-h-0 flex-col gap-4 overflow-hidden border border-border bg-primary/25 p-6">
         <div>
           <p className="truncate font-mono text-[10px] text-accent uppercase">{trek.region}</p>
-          <h2 className="mt-1 line-clamp-2 font-display text-3xl leading-tight font-semibold">
+          <h2 className="mt-1 line-clamp-2 font-display text-2xl leading-tight font-semibold">
             {trek.name}
           </h2>
         </div>

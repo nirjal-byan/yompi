@@ -18,7 +18,7 @@ export function TrekCard({ trek, selected, onSelect }: TrekCardProps) {
       onClick={onSelect}
       aria-pressed={selected}
       className={cn(
-        "flex h-[210px] w-full flex-col overflow-hidden gap-2 border bg-surface p-5 text-left transition-colors hover:bg-surface-muted",
+        "flex h-[230px] w-full flex-col overflow-hidden gap-2 border bg-surface p-5 text-left transition-colors hover:bg-surface-muted",
         selected ? "border-foreground" : "border-border-soft",
       )}
     >
