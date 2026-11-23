@@ -18,6 +18,9 @@ export type CostCategory = z.infer<typeof CostCategorySchema>;
 export const CostUnitSchema = z.enum(["PER_DAY", "PER_NIGHT", "PER_PERSON", "PER_TRIP"]);
 export type CostUnit = z.infer<typeof CostUnitSchema>;
 
+export const StayTierSchema = z.enum(["BUDGET", "STANDARD", "COMFORT"]);
+export type StayTier = z.infer<typeof StayTierSchema>;
+
 export const STALE_AFTER_MONTHS = 18;
 
 const blankToUndefined = (value: unknown) =>
@@ -139,6 +142,19 @@ export const CostRowSchema = z.object({
   ...sourceFields,
 });
 export type CostRow = z.infer<typeof CostRowSchema>;
+
+export const StayRowSchema = z.object({
+  slug,
+  name: requiredText(160),
+  place: requiredText(120),
+  trekSlug: slug,
+  tier: StayTierSchema,
+  pricePerNightNpr: optionalWholeNumber(0, 1_000_000),
+  elevationM: optionalWholeNumber(0, 9000),
+  notes: optionalText(),
+  ...sourceFields,
+});
+export type StayRow = z.infer<typeof StayRowSchema>;
 
 export function isStale(verifiedAt: string | Date, now = new Date()): boolean {
   const cutoff = new Date(now);
@@ -285,7 +301,24 @@ export interface CostRecord extends SourcedRecord {
   notes: string | null;
 }
 
-export const ADMIN_RESOURCES = ["treks", "permits", "costs"] as const;
+export interface StayRecord extends SourcedRecord {
+  slug: string;
+  name: string;
+  place: string;
+  trekSlug: string;
+  tier: StayTier;
+  pricePerNightNpr: number | null;
+  elevationM: number | null;
+  notes: string | null;
+}
+
+export interface StayInfo extends Omit<StayRecord, "sourceName" | "sourceUrl" | "verifiedAt"> {
+  trekName: string;
+  region: string;
+  source: SourceCitation;
+}
+
+export const ADMIN_RESOURCES = ["treks", "permits", "costs", "stays"] as const;
 export type AdminResource = (typeof ADMIN_RESOURCES)[number];
 
 export interface AttentionItem {
