@@ -1,3 +1,4 @@
+import type { TrekImage } from "../lib/trek-image";
 import type { TrekSummary } from "@yompi/shared";
 import { ButtonLink } from "@/components/ui/button";
 import {
@@ -14,7 +15,7 @@ const MISSING_VALUE = "—";
 
 interface TrekPreviewProps {
   trek: TrekSummary;
-  imageSrc: string | null;
+  image: TrekImage | null;
 }
 
 function PreviewFact({ label, value }: { label: string; value: string }) {
@@ -26,14 +27,14 @@ function PreviewFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function TrekPreview({ trek, imageSrc }: TrekPreviewProps) {
+export function TrekPreview({ trek, image }: TrekPreviewProps) {
   return (
     <section
       aria-label={`${trek.name} preview`}
       className={`grid gap-4 lg:grid-cols-[1fr_340px] ${PREVIEW_HEIGHT_CLASS}`}
     >
       <TrekPhoto
-        src={imageSrc}
+        image={image}
         alt={`${trek.name} landscape`}
         caption={`Photo illustration · ${trek.region}`}
         className="h-[240px] lg:h-full"

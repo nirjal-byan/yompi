@@ -72,7 +72,7 @@ export function TrekDetail({ trek, info }: TrekDetailProps) {
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="flex flex-col gap-8">
           <TrekPhoto
-            src={findTrekImage(trek.slug)}
+            image={findTrekImage(trek.slug)}
             alt={`${trek.name} landscape`}
             caption={`Photo illustration · ${trek.region}`}
             className="min-h-[260px]"

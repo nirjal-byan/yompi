@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { TrekSummary } from "@yompi/shared";
+import type { TrekImage } from "../lib/trek-image";
 import { useTrekFilters } from "../hooks/use-trek-filters";
 import { TrekCard } from "./trek-card";
 import { TrekFilters } from "./trek-filters";
@@ -9,7 +10,7 @@ import { PREVIEW_HEIGHT_CLASS, TrekPreview } from "./trek-preview";
 
 interface TreksExplorerProps {
   treks: TrekSummary[];
-  images: Record<string, string | null>;
+  images: Record<string, TrekImage | null>;
 }
 
 function PreparationNote() {
@@ -44,7 +45,7 @@ export function TreksExplorer({ treks, images }: TreksExplorerProps) {
 
       <div className="flex min-w-0 flex-col gap-6">
         {selected ? (
-          <TrekPreview trek={selected} imageSrc={images[selected.slug] ?? null} />
+          <TrekPreview trek={selected} image={images[selected.slug] ?? null} />
         ) : (
           <div
             className={`flex items-center justify-center border border-border-soft bg-surface p-6 text-sm text-muted ${PREVIEW_HEIGHT_CLASS}`}
