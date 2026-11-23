@@ -87,16 +87,21 @@ export class TreksService {
       }),
     ]);
 
-    return treks.map(({ id, permits, ...trek }) => ({
-      ...trek,
-      estimatedCostNpr: estimateCostPerPerson({
+    return treks.map(({ id, permits, ...trek }) => {
+      const estimate = estimateCostPerPerson({
         days: trek.minDays,
         permits: permits.map(({ permit }) => permit),
         costs: costs
           .filter((cost) => cost.trekId === id || cost.trekId === null)
           .map((cost) => ({ ...cost, specific: cost.trekId === id })),
-      }),
-    }));
+      });
+
+      return {
+        ...trek,
+        estimatedCostNpr: estimate?.totalNpr ?? null,
+        costBasis: estimate?.basis ?? null,
+      };
+    });
   }
 
   async findByTrailId(trailId: string, context: TrekContext): Promise<TrekInfo | null> {

@@ -206,6 +206,8 @@ export interface TrekInfo {
   difficulty: DifficultyEstimate | null;
 }
 
+export type CostBasis = "PERMITS_ONLY" | "PERMITS_AND_DAILY_COSTS";
+
 export interface TrekSummary {
   slug: string;
   name: string;
@@ -218,6 +220,7 @@ export interface TrekSummary {
   notes: string | null;
   trailId: string | null;
   estimatedCostNpr: number | null;
+  costBasis: CostBasis | null;
 }
 
 export interface FieldError {

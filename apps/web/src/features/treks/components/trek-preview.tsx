@@ -1,6 +1,12 @@
 import type { TrekSummary } from "@yompi/shared";
 import { ButtonLink } from "@/components/ui/button";
-import { formatDays, formatMetres, formatNpr, formatRoute } from "../lib/format";
+import {
+  ESTIMATE_LABEL,
+  formatDays,
+  formatEstimate,
+  formatMetres,
+  formatRoute,
+} from "../lib/format";
 import { TrekPhoto } from "./trek-photo";
 
 export const PREVIEW_HEIGHT_CLASS = "lg:h-[440px]";
@@ -51,10 +57,8 @@ export function TrekPreview({ trek, imageSrc }: TrekPreviewProps) {
           />
           <PreviewFact label="Route" value={formatRoute(trek) ?? MISSING_VALUE} />
           <PreviewFact
-            label="From"
-            value={
-              trek.estimatedCostNpr ? `${formatNpr(trek.estimatedCostNpr)} / person` : MISSING_VALUE
-            }
+            label={trek.costBasis ? ESTIMATE_LABEL[trek.costBasis] : "Estimated cost"}
+            value={formatEstimate(trek)?.replace(/^(From|Permits) /, "") ?? MISSING_VALUE}
           />
         </dl>
 

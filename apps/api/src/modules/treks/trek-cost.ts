@@ -1,4 +1,4 @@
-import type { CostCategory, CostUnit, PermitUnit } from "@yompi/shared";
+import type { CostBasis, CostCategory, CostUnit, PermitUnit } from "@yompi/shared";
 
 export interface PermitAmount {
   amountNpr: number;
@@ -34,12 +34,22 @@ function pickRate(costs: CostAmount[], category: CostCategory, unit: CostUnit): 
   return preferred?.amountNpr ?? 0;
 }
 
-export function estimateCostPerPerson({ days, permits, costs }: CostEstimateInput): number | null {
+export interface CostEstimate {
+  totalNpr: number;
+  basis: CostBasis;
+}
+
+export function estimateCostPerPerson({
+  days,
+  permits,
+  costs,
+}: CostEstimateInput): CostEstimate | null {
   const nights = Math.max(days - 1, 0);
-  const total =
-    permitTotal(permits, days) +
+  const dailyCosts =
     pickRate(costs, "FOOD_DAILY", "PER_DAY") * days +
     pickRate(costs, "LODGING_BUDGET", "PER_NIGHT") * nights;
+  const totalNpr = permitTotal(permits, days) + dailyCosts;
+  if (totalNpr <= 0) return null;
 
-  return total > 0 ? total : null;
+  return { totalNpr, basis: dailyCosts > 0 ? "PERMITS_AND_DAILY_COSTS" : "PERMITS_ONLY" };
 }

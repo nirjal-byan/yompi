@@ -1,6 +1,6 @@
 import type { TrekSummary } from "@yompi/shared";
 import { cn } from "@/lib/cn";
-import { formatDays, formatMetres, formatNpr, formatRoute } from "../lib/format";
+import { formatDays, formatEstimate, formatMetres, formatRoute } from "../lib/format";
 
 interface TrekCardProps {
   trek: TrekSummary;
@@ -10,6 +10,7 @@ interface TrekCardProps {
 
 export function TrekCard({ trek, selected, onSelect }: TrekCardProps) {
   const route = formatRoute(trek);
+  const estimate = formatEstimate(trek);
   const facts = [formatDays(trek), trek.highestPointM && formatMetres(trek.highestPointM)];
 
   return (
@@ -27,9 +28,7 @@ export function TrekCard({ trek, selected, onSelect }: TrekCardProps) {
       {route && <p className="truncate text-sm text-muted">{route}</p>}
       <p className="mt-auto flex flex-col gap-1 pt-4 text-sm">
         <span className="text-muted">{facts.filter(Boolean).join(" / ")}</span>
-        {trek.estimatedCostNpr && (
-          <span className="font-semibold">From {formatNpr(trek.estimatedCostNpr)} / person</span>
-        )}
+        {estimate && <span className="font-semibold">{estimate}</span>}
       </p>
     </button>
   );

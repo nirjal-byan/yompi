@@ -16,7 +16,10 @@ describe("estimateCostPerPerson", () => {
       ],
     });
 
-    expect(estimate).toBe(3000 + 700 + 14000 + 3000);
+    expect(estimate).toEqual({
+      totalNpr: 3000 + 700 + 14000 + 3000,
+      basis: "PERMITS_AND_DAILY_COSTS",
+    });
   });
 
   it("prefers the trek specific rate", () => {
@@ -29,7 +32,17 @@ describe("estimateCostPerPerson", () => {
       ],
     });
 
-    expect(estimate).toBe(6000);
+    expect(estimate?.totalNpr).toBe(6000);
+  });
+
+  it("labels a permits-only estimate", () => {
+    const estimate = estimateCostPerPerson({
+      days: 5,
+      permits: [{ amountNpr: 3000, unit: "PER_PERSON" }],
+      costs: [],
+    });
+
+    expect(estimate).toEqual({ totalNpr: 3000, basis: "PERMITS_ONLY" });
   });
 
   it("returns null when nothing is sourced", () => {
