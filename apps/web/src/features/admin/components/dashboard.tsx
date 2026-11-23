@@ -6,9 +6,15 @@ import type { AdminOverview } from "@yompi/shared";
 import { ButtonLink } from "@/components/ui/button";
 import { adminApi } from "../services/admin-api";
 import { CONFIGS, RESOURCES } from "../config";
-import { CostIcon, PermitIcon, StayIcon, TrekIcon } from "./icons";
+import { ConditionIcon, CostIcon, PermitIcon, StayIcon, TrekIcon } from "./icons";
 
-const ICONS = { treks: TrekIcon, permits: PermitIcon, costs: CostIcon, stays: StayIcon };
+const ICONS = {
+  treks: TrekIcon,
+  permits: PermitIcon,
+  costs: CostIcon,
+  stays: StayIcon,
+  conditions: ConditionIcon,
+};
 
 function StatIcon({ kind }: { kind: keyof typeof ICONS }) {
   const Icon = ICONS[kind];

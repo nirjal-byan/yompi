@@ -67,6 +67,12 @@ const STAY_TIERS = [
   { value: "COMFORT", label: "Comfort" },
 ];
 
+const CONDITION_CATEGORIES = [
+  { value: "WEATHER", label: "Weather" },
+  { value: "OFFICIAL_ADVISORY", label: "Official advisory" },
+  { value: "TRAIL_REPORT", label: "Trail report" },
+];
+
 const labelOf = (options: { value: string; label: string }[], value: unknown) =>
   options.find((o) => o.value === value)?.label ?? String(value ?? "");
 
@@ -321,6 +327,57 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
       { header: "Place", value: (r) => text(r, "place") },
       { header: "Trek", value: (r) => text(r, "trekSlug") },
       { header: "Level", value: (r) => labelOf(STAY_TIERS, r.tier) },
+    ],
+  },
+  conditions: {
+    key: "conditions",
+    singular: "condition report",
+    plural: "Conditions",
+    intro:
+      "Weather notes, official advisories and trail reports. These go out of date fast, so a report older than 30 days is flagged as possibly out of date.",
+    nameField: "title",
+    fields: [
+      {
+        name: "title",
+        label: "Headline",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Thorong La snow warning",
+      },
+      {
+        name: "slug",
+        label: "Id",
+        type: "text",
+        required: true,
+        help: "Short id (lowercase, dashes). Filled in for you; it cannot be changed later.",
+      },
+      {
+        name: "category",
+        label: "Type",
+        type: "select",
+        required: true,
+        options: CONDITION_CATEGORIES,
+      },
+      {
+        name: "trekSlug",
+        label: "Trek",
+        type: "trek",
+        emptyLabel: "Applies to all treks",
+        help: "Leave on 'Applies to all treks' for a general notice.",
+      },
+      {
+        name: "summary",
+        label: "What was reported",
+        type: "textarea",
+        required: true,
+        help: "A short summary in your own words.",
+      },
+    ],
+    columns: [
+      { header: "Headline", value: (r) => text(r, "title") },
+      { header: "Type", value: (r) => labelOf(CONDITION_CATEGORIES, r.category) },
+      { header: "Trek", value: (r) => text(r, "trekSlug") || "all treks" },
+      { header: "Checked", value: (r) => text(r, "verifiedAt") },
     ],
   },
 };

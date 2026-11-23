@@ -51,6 +51,12 @@ export const StayIcon = (p: SVGProps<SVGSVGElement>) => (
   </Icon>
 );
 
+export const ConditionIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M12 3 2 20h20zM12 10v4M12 17v1" />
+  </Icon>
+);
+
 export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" />
