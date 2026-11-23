@@ -2,6 +2,8 @@ import {
   type AdminOverview,
   type AdminResource,
   type AttentionItem,
+  CONDITION_STALE_AFTER_DAYS,
+  type ConditionRecord,
   type CostRecord,
   type PermitRecord,
   type StayRecord,
@@ -15,6 +17,7 @@ interface Records {
   permits: PermitRecord[];
   costs: CostRecord[];
   stays: StayRecord[];
+  conditions: ConditionRecord[];
 }
 
 async function findTrailsWithoutTrek(db: Database): Promise<AttentionItem[]> {
@@ -59,8 +62,23 @@ function findStale<T extends { slug: string; verifiedAt: string }>(
     }));
 }
 
+const MS_PER_DAY = 86_400_000;
+
+function findStaleConditions(conditions: ConditionRecord[]): AttentionItem[] {
+  const cutoff = Date.now() - CONDITION_STALE_AFTER_DAYS * MS_PER_DAY;
+
+  return conditions
+    .filter((condition) => Date.parse(condition.verifiedAt) < cutoff)
+    .map((condition) => ({
+      resource: "conditions",
+      slug: condition.slug,
+      label: condition.title,
+      message: `Last checked ${condition.verifiedAt}. Conditions change quickly, so re-check or remove it.`,
+    }));
+}
+
 export async function buildOverview(db: Database, records: Records): Promise<AdminOverview> {
-  const { treks, permits, costs, stays } = records;
+  const { treks, permits, costs, stays, conditions } = records;
 
   const attention = [
     ...(await findTrailsWithoutTrek(db)),
@@ -69,6 +87,7 @@ export async function buildOverview(db: Database, records: Records): Promise<Adm
     ...findStale("permits", permits, (permit) => permit.name),
     ...findStale("costs", costs, (cost) => cost.label),
     ...findStale("stays", stays, (stay) => stay.name),
+    ...findStaleConditions(conditions),
   ];
 
   return {
@@ -77,6 +96,7 @@ export async function buildOverview(db: Database, records: Records): Promise<Adm
       permits: permits.length,
       costs: costs.length,
       stays: stays.length,
+      conditions: conditions.length,
     },
     attention,
   };

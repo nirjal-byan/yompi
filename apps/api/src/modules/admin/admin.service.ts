@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { ADMIN_RESOURCES, type AdminOverview, type AdminResource } from "@yompi/shared";
 import { PrismaService } from "../../infrastructure/database/prisma.service.js";
 import { buildOverview } from "./admin-overview.js";
+import { createConditionResource } from "./resources/condition.resource.js";
 import { createCostResource } from "./resources/cost.resource.js";
 import { createStayResource } from "./resources/stay.resource.js";
 import { createPermitResource } from "./resources/permit.resource.js";
@@ -19,6 +20,7 @@ function createCruds(db: Database) {
     permits: new ResourceCrud(db, createPermitResource(db)),
     costs: new ResourceCrud(db, createCostResource(db)),
     stays: new ResourceCrud(db, createStayResource(db)),
+    conditions: new ResourceCrud(db, createConditionResource(db)),
   };
 }
 
@@ -41,13 +43,14 @@ export class AdminService {
   }
 
   async overview(): Promise<AdminOverview> {
-    const [treks, permits, costs, stays] = await Promise.all([
+    const [treks, permits, costs, stays, conditions] = await Promise.all([
       this.cruds.treks.list(),
       this.cruds.permits.list(),
       this.cruds.costs.list(),
       this.cruds.stays.list(),
+      this.cruds.conditions.list(),
     ]);
 
-    return buildOverview(this.prisma.client, { treks, permits, costs, stays });
+    return buildOverview(this.prisma.client, { treks, permits, costs, stays, conditions });
   }
 }

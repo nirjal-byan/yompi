@@ -2,7 +2,7 @@ import type { PrismaService } from "../../../infrastructure/database/prisma.serv
 
 export type Database = PrismaService["client"];
 
-export type ResourceTable = "Trek" | "Permit" | "CostItem" | "Stay";
+export type ResourceTable = "Trek" | "Permit" | "CostItem" | "Stay" | "Condition";
 
 export interface ResourceDefinition<
   TRecord extends { slug: string },
