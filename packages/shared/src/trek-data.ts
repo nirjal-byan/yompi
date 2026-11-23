@@ -21,6 +21,11 @@ export type CostUnit = z.infer<typeof CostUnitSchema>;
 export const StayTierSchema = z.enum(["BUDGET", "STANDARD", "COMFORT"]);
 export type StayTier = z.infer<typeof StayTierSchema>;
 
+export const ConditionCategorySchema = z.enum(["WEATHER", "OFFICIAL_ADVISORY", "TRAIL_REPORT"]);
+export type ConditionCategory = z.infer<typeof ConditionCategorySchema>;
+
+export const CONDITION_STALE_AFTER_DAYS = 30;
+
 export const STALE_AFTER_MONTHS = 18;
 
 const blankToUndefined = (value: unknown) =>
@@ -155,6 +160,16 @@ export const StayRowSchema = z.object({
   ...sourceFields,
 });
 export type StayRow = z.infer<typeof StayRowSchema>;
+
+export const ConditionRowSchema = z.object({
+  slug,
+  title: requiredText(160),
+  summary: requiredText(1200),
+  category: ConditionCategorySchema,
+  trekSlug: z.preprocess(blankToUndefined, slug.optional()),
+  ...sourceFields,
+});
+export type ConditionRow = z.infer<typeof ConditionRowSchema>;
 
 export function isStale(verifiedAt: string | Date, now = new Date()): boolean {
   const cutoff = new Date(now);
@@ -318,7 +333,23 @@ export interface StayInfo extends Omit<StayRecord, "sourceName" | "sourceUrl" | 
   source: SourceCitation;
 }
 
-export const ADMIN_RESOURCES = ["treks", "permits", "costs", "stays"] as const;
+export interface ConditionRecord extends SourcedRecord {
+  slug: string;
+  title: string;
+  summary: string;
+  category: ConditionCategory;
+  trekSlug: string | null;
+}
+
+export interface ConditionInfo extends Omit<
+  ConditionRecord,
+  "sourceName" | "sourceUrl" | "verifiedAt"
+> {
+  trekName: string | null;
+  source: SourceCitation;
+}
+
+export const ADMIN_RESOURCES = ["treks", "permits", "costs", "stays", "conditions"] as const;
 export type AdminResource = (typeof ADMIN_RESOURCES)[number];
 
 export interface AttentionItem {
