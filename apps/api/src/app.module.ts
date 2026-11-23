@@ -8,6 +8,7 @@ import { MailModule } from "./infrastructure/mail/mail.module.js";
 import { AdminModule } from "./modules/admin/admin.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { GeoModule } from "./modules/geo/geo.module.js";
+import { StaysModule } from "./modules/stays/stays.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
 
 @Module({
@@ -21,6 +22,7 @@ import { HealthModule } from "./modules/health/health.module.js";
     AuthModule,
     AdminModule,
     GeoModule,
+    StaysModule,
     HealthModule,
   ],
   controllers: [AppController],

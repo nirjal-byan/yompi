@@ -3,6 +3,7 @@ import { ADMIN_RESOURCES, type AdminOverview, type AdminResource } from "@yompi/
 import { PrismaService } from "../../infrastructure/database/prisma.service.js";
 import { buildOverview } from "./admin-overview.js";
 import { createCostResource } from "./resources/cost.resource.js";
+import { createStayResource } from "./resources/stay.resource.js";
 import { createPermitResource } from "./resources/permit.resource.js";
 import { type CrudOperations, ResourceCrud } from "./resources/resource-crud.js";
 import type { Database } from "./resources/resource-definition.js";
@@ -17,6 +18,7 @@ function createCruds(db: Database) {
     treks: new ResourceCrud(db, createTrekResource(db)),
     permits: new ResourceCrud(db, createPermitResource(db)),
     costs: new ResourceCrud(db, createCostResource(db)),
+    stays: new ResourceCrud(db, createStayResource(db)),
   };
 }
 
@@ -39,12 +41,13 @@ export class AdminService {
   }
 
   async overview(): Promise<AdminOverview> {
-    const [treks, permits, costs] = await Promise.all([
+    const [treks, permits, costs, stays] = await Promise.all([
       this.cruds.treks.list(),
       this.cruds.permits.list(),
       this.cruds.costs.list(),
+      this.cruds.stays.list(),
     ]);
 
-    return buildOverview(this.prisma.client, { treks, permits, costs });
+    return buildOverview(this.prisma.client, { treks, permits, costs, stays });
   }
 }

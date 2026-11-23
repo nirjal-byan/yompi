@@ -4,6 +4,7 @@ import {
   type AttentionItem,
   type CostRecord,
   type PermitRecord,
+  type StayRecord,
   type TrekRecord,
   isStale,
 } from "@yompi/shared";
@@ -13,6 +14,7 @@ interface Records {
   treks: TrekRecord[];
   permits: PermitRecord[];
   costs: CostRecord[];
+  stays: StayRecord[];
 }
 
 async function findTrailsWithoutTrek(db: Database): Promise<AttentionItem[]> {
@@ -58,7 +60,7 @@ function findStale<T extends { slug: string; verifiedAt: string }>(
 }
 
 export async function buildOverview(db: Database, records: Records): Promise<AdminOverview> {
-  const { treks, permits, costs } = records;
+  const { treks, permits, costs, stays } = records;
 
   const attention = [
     ...(await findTrailsWithoutTrek(db)),
@@ -66,10 +68,16 @@ export async function buildOverview(db: Database, records: Records): Promise<Adm
     ...findStale("treks", treks, (trek) => trek.name),
     ...findStale("permits", permits, (permit) => permit.name),
     ...findStale("costs", costs, (cost) => cost.label),
+    ...findStale("stays", stays, (stay) => stay.name),
   ];
 
   return {
-    counts: { treks: treks.length, permits: permits.length, costs: costs.length },
+    counts: {
+      treks: treks.length,
+      permits: permits.length,
+      costs: costs.length,
+      stays: stays.length,
+    },
     attention,
   };
 }
