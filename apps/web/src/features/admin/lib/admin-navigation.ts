@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from "react";
 import type { AdminResource } from "@yompi/shared";
-import { CostIcon, DashboardIcon, PermitIcon, TrekIcon } from "../components/icons";
+import { CostIcon, DashboardIcon, PermitIcon, StayIcon, TrekIcon } from "../components/icons";
 
 export type ResourceCounts = Record<AdminResource, number>;
 
@@ -29,6 +29,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/treks", label: "Treks", icon: TrekIcon, countKey: "treks" },
       { href: "/admin/permits", label: "Permits", icon: PermitIcon, countKey: "permits" },
       { href: "/admin/costs", label: "Costs", icon: CostIcon, countKey: "costs" },
+      { href: "/admin/stays", label: "Stays", icon: StayIcon, countKey: "stays" },
     ],
   },
 ];
@@ -37,6 +38,7 @@ const SECTION_LABEL: Record<string, string> = {
   treks: "Treks",
   permits: "Permits",
   costs: "Costs",
+  stays: "Stays",
 };
 
 export function isActivePath(pathname: string, href: string): boolean {

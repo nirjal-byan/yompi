@@ -11,6 +11,7 @@ export interface FieldDef {
   help?: string;
   placeholder?: string;
   options?: { value: string; label: string }[];
+  emptyLabel?: string;
 }
 
 export interface ColumnDef {
@@ -58,6 +59,12 @@ const COST_CATEGORIES = [
   { value: "LODGING_COMFORT", label: "Lodging: comfort" },
   { value: "TRANSPORT", label: "Transport" },
   { value: "OTHER", label: "Other" },
+];
+
+const STAY_TIERS = [
+  { value: "BUDGET", label: "Budget" },
+  { value: "STANDARD", label: "Standard" },
+  { value: "COMFORT", label: "Comfort" },
 ];
 
 const labelOf = (options: { value: string; label: string }[], value: unknown) =>
@@ -261,6 +268,59 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
       { header: "Category", value: (r) => labelOf(COST_CATEGORIES, r.category) },
       { header: "Price", value: (r) => `${npr(r)} ${labelOf(COST_UNITS, r.unit)}` },
       { header: "Applies to", value: (r) => text(r, "trekSlug") || "all treks" },
+    ],
+  },
+  stays: {
+    key: "stays",
+    singular: "stay",
+    plural: "Stays",
+    intro:
+      "Teahouses and lodges along a trek. Add the price per night only if you have a source for it.",
+    nameField: "name",
+    fields: [
+      {
+        name: "name",
+        label: "Name",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Himalaya Lodge",
+      },
+      {
+        name: "slug",
+        label: "Id",
+        type: "text",
+        required: true,
+        help: "Short id (lowercase, dashes). Filled in for you; it cannot be changed later.",
+      },
+      {
+        name: "place",
+        label: "Village or stop",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Namche Bazaar",
+      },
+      {
+        name: "trekSlug",
+        label: "Trek",
+        type: "trek",
+        required: true,
+        emptyLabel: "Choose a trek",
+      },
+      { name: "tier", label: "Comfort level", type: "select", required: true, options: STAY_TIERS },
+      {
+        name: "pricePerNightNpr",
+        label: "Price per night (NPR)",
+        type: "number",
+        help: "Optional. Whole rupees, no commas.",
+      },
+      { name: "elevationM", label: "Elevation (m)", type: "number", help: "Optional." },
+      { name: "notes", label: "Notes", type: "textarea", help: "Optional." },
+    ],
+    columns: [
+      { header: "Name", value: (r) => text(r, "name") },
+      { header: "Place", value: (r) => text(r, "place") },
+      { header: "Trek", value: (r) => text(r, "trekSlug") },
+      { header: "Level", value: (r) => labelOf(STAY_TIERS, r.tier) },
     ],
   },
 };

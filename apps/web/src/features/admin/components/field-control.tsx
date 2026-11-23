@@ -125,7 +125,7 @@ export function FieldControl({
         <OptionSelect
           {...attributes}
           options={treks.map((trek) => ({ value: trek.slug, label: trek.name }))}
-          emptyLabel="All treks (general rate)"
+          emptyLabel={field.emptyLabel ?? "All treks (general rate)"}
           value={text}
           onChange={onChange}
         />

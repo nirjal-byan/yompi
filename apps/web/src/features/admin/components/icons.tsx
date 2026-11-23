@@ -45,6 +45,12 @@ export const CostIcon = (p: SVGProps<SVGSVGElement>) => (
   </Icon>
 );
 
+export const StayIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M3 20V10l9-6 9 6v10zM9 20v-6h6v6" />
+  </Icon>
+);
+
 export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" />
