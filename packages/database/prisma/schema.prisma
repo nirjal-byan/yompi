@@ -227,6 +227,7 @@ model Trek {
   permits       TrekPermit[]
   costs         CostItem[]
   stays         Stay[]
+  conditions    Condition[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -290,6 +291,23 @@ model Stay {
   verifiedAt       DateTime
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+
+  @@index([trekId])
+}
+
+model Condition {
+  id         String            @id @default(uuid())
+  slug       String            @unique
+  title      String
+  summary    String
+  category   ConditionCategory
+  trekId     String?
+  trek       Trek?             @relation(fields: [trekId], references: [id], onDelete: SetNull)
+  sourceName String
+  sourceUrl  String
+  verifiedAt DateTime
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
 
   @@index([trekId])
 }
