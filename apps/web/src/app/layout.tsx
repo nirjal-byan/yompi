@@ -7,8 +7,8 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 const pixel = Pixelify_Sans({ variable: "--font-pixel", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "YOMPI",
-  description: "Your Himalayan Adventure Buddy",
+  title: { default: "Yompi - Your Himalayan Buddy", template: "%s | Yompi" },
+  description: "Yompi, your Himalayan buddy for trekking in Nepal.",
   icons: { icon: "/brand/yompi-mark.png" },
 };
 

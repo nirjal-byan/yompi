@@ -4,7 +4,7 @@
 
 <h1 align="center">YOMPI</h1>
 
-<p align="center"><strong>Your Himalayan Adventure Buddy.</strong><br />One hop at a time.</p>
+<p align="center"><strong>Your Himalayan Buddy.</strong><br />Big mountains. Little hops.</p>
 
 ---
 

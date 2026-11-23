@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { JoinForm } from "@/features/auth/components/join-form";
 import { Tag } from "@/components/ui/tag";
 
-export const metadata: Metadata = { title: "Join YOMPI" };
+export const metadata: Metadata = { title: "Join" };
 
 export default function JoinPage() {
   return (
