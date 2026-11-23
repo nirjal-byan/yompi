@@ -226,6 +226,7 @@ model Trek {
   verifiedAt    DateTime
   permits       TrekPermit[]
   costs         CostItem[]
+  stays         Stay[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -271,4 +272,24 @@ model CostItem {
   verifiedAt DateTime
   createdAt  DateTime     @default(now())
   updatedAt  DateTime     @updatedAt
+}
+
+model Stay {
+  id               String            @id @default(uuid())
+  slug             String            @unique
+  name             String
+  place            String
+  trekId           String
+  trek             Trek              @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  tier             AccommodationTier
+  pricePerNightNpr Int?
+  elevationM       Int?
+  notes            String?
+  sourceName       String
+  sourceUrl        String
+  verifiedAt       DateTime
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([trekId])
 }
