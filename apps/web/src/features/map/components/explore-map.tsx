@@ -13,7 +13,7 @@ import { ZoomControls } from "./zoom-controls";
 
 const isAnnapurnaTrail = (name: string) => /annapurna/i.test(name);
 
-export function ExploreMap() {
+export function ExploreMap({ initialFeatureId = null }: { initialFeatureId?: string | null }) {
   const {
     hostRef,
     data,
@@ -28,7 +28,7 @@ export function ExploreMap() {
     clearSelection,
     zoomBy,
     focusTrails,
-  } = useMapEngine();
+  } = useMapEngine(initialFeatureId);
 
   return (
     <main className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col gap-5 px-6 py-6">

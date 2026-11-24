@@ -6,10 +6,11 @@ import { ALL_LAYERS_ON, showAllFeatures, toggleLayer as nextLayers } from "../li
 import type { MapLayers, NepalMapEngine } from "../lib/map-engine";
 import { getGeoFeatures } from "../services/geo-api";
 
-export function useMapEngine() {
+export function useMapEngine(initialFeatureId: string | null = null) {
   const hostRef = useRef<HTMLDivElement>(null);
   const engineRef = useRef<NepalMapEngine | null>(null);
   const layersRef = useRef<MapLayers>(ALL_LAYERS_ON);
+  const initialFeatureIdRef = useRef(initialFeatureId);
 
   const [data, setData] = useState<GeoFeatureCollection | null>(null);
   const [failed, setFailed] = useState(false);
@@ -46,6 +47,12 @@ export function useMapEngine() {
       }
 
       created.setLayers(layersRef.current);
+
+      const initialId = initialFeatureIdRef.current;
+      if (initialId && data.features.some((feature) => feature.id === initialId)) {
+        created.select(initialId, true);
+      }
+
       engine = created;
       engineRef.current = created;
     });

@@ -29,7 +29,11 @@ export function TrekFactsCard({ trek }: { trek: TrekSummary }) {
         )}
         {route && <Fact label="Route" value={route} />}
       </dl>
-      <ButtonLink href="/" variant="primary" className="w-full">
+      <ButtonLink
+        href={trek.trailId ? `/?trail=${trek.trailId}` : "/"}
+        variant="primary"
+        className="w-full"
+      >
         See it on the map →
       </ButtonLink>
     </aside>
