@@ -5,6 +5,7 @@ import {
   CONDITION_STALE_AFTER_DAYS,
   type ConditionRecord,
   type CostRecord,
+  type ItineraryDayRecord,
   type PermitRecord,
   type StayRecord,
   type TrekRecord,
@@ -18,6 +19,7 @@ interface Records {
   costs: CostRecord[];
   stays: StayRecord[];
   conditions: ConditionRecord[];
+  itinerary: ItineraryDayRecord[];
 }
 
 async function findTrailsWithoutTrek(db: Database): Promise<AttentionItem[]> {
@@ -78,7 +80,7 @@ function findStaleConditions(conditions: ConditionRecord[]): AttentionItem[] {
 }
 
 export async function buildOverview(db: Database, records: Records): Promise<AdminOverview> {
-  const { treks, permits, costs, stays, conditions } = records;
+  const { treks, permits, costs, stays, conditions, itinerary } = records;
 
   const attention = [
     ...(await findTrailsWithoutTrek(db)),
@@ -88,6 +90,7 @@ export async function buildOverview(db: Database, records: Records): Promise<Adm
     ...findStale("costs", costs, (cost) => cost.label),
     ...findStale("stays", stays, (stay) => stay.name),
     ...findStaleConditions(conditions),
+    ...findStale("itinerary", itinerary, (day) => `${day.trekSlug} day ${day.dayNumber}`),
   ];
 
   return {
@@ -97,6 +100,7 @@ export async function buildOverview(db: Database, records: Records): Promise<Adm
       costs: costs.length,
       stays: stays.length,
       conditions: conditions.length,
+      itinerary: itinerary.length,
     },
     attention,
   };

@@ -5,6 +5,7 @@ import { buildOverview } from "./admin-overview.js";
 import { createConditionResource } from "./resources/condition.resource.js";
 import { createCostResource } from "./resources/cost.resource.js";
 import { createStayResource } from "./resources/stay.resource.js";
+import { createItineraryResource } from "./resources/itinerary.resource.js";
 import { createPermitResource } from "./resources/permit.resource.js";
 import { type CrudOperations, ResourceCrud } from "./resources/resource-crud.js";
 import type { Database } from "./resources/resource-definition.js";
@@ -21,6 +22,7 @@ function createCruds(db: Database) {
     costs: new ResourceCrud(db, createCostResource(db)),
     stays: new ResourceCrud(db, createStayResource(db)),
     conditions: new ResourceCrud(db, createConditionResource(db)),
+    itinerary: new ResourceCrud(db, createItineraryResource(db)),
   };
 }
 
@@ -43,14 +45,22 @@ export class AdminService {
   }
 
   async overview(): Promise<AdminOverview> {
-    const [treks, permits, costs, stays, conditions] = await Promise.all([
+    const [treks, permits, costs, stays, conditions, itinerary] = await Promise.all([
       this.cruds.treks.list(),
       this.cruds.permits.list(),
       this.cruds.costs.list(),
       this.cruds.stays.list(),
       this.cruds.conditions.list(),
+      this.cruds.itinerary.list(),
     ]);
 
-    return buildOverview(this.prisma.client, { treks, permits, costs, stays, conditions });
+    return buildOverview(this.prisma.client, {
+      treks,
+      permits,
+      costs,
+      stays,
+      conditions,
+      itinerary,
+    });
   }
 }

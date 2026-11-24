@@ -3,6 +3,7 @@ import {
   type CostCategory,
   type CostInfo,
   type CostUnit,
+  type ItineraryDayInfo,
   type PermitInfo,
   type PermitUnit,
   type SourceCitation,
@@ -12,6 +13,7 @@ import {
 } from "@yompi/shared";
 import { PrismaService } from "../../infrastructure/database/prisma.service.js";
 import { estimateCostPerPerson } from "./trek-cost.js";
+import { toItineraryDayInfo } from "./trek-itinerary.js";
 import { estimateDifficulty } from "./difficulty.js";
 
 interface SourceColumns {
@@ -111,6 +113,18 @@ export class TreksService {
       FROM "Trek" WHERE "trailId" = ${trailId} LIMIT 1`;
 
     return treks.length ? this.buildInfo(treks[0], context) : null;
+  }
+
+  async listItinerary(slug: string): Promise<ItineraryDayInfo[]> {
+    const trek = await this.prisma.client.trek.findUnique({
+      where: { slug },
+      select: {
+        itinerary: { orderBy: { dayNumber: "asc" } },
+        stays: { select: { name: true, place: true, tier: true, pricePerNightNpr: true } },
+      },
+    });
+
+    return (trek?.itinerary ?? []).map((day) => toItineraryDayInfo(day, trek?.stays ?? []));
   }
 
   async findBySlug(slug: string): Promise<TrekInfo | null> {
