@@ -1,6 +1,6 @@
 import type { TrekImage } from "../lib/trek-image";
 import type { TrekSummary } from "@yompi/shared";
-import { ButtonLink } from "@/components/ui/button";
+import { Button, ButtonLink } from "@/components/ui/button";
 import {
   ESTIMATE_LABEL,
   formatDays,
@@ -16,6 +16,9 @@ const MISSING_VALUE = "—";
 interface TrekPreviewProps {
   trek: TrekSummary;
   image: TrekImage | null;
+  comparing: boolean;
+  compareFull: boolean;
+  onToggleCompare: () => void;
 }
 
 function PreviewFact({ label, value }: { label: string; value: string }) {
@@ -27,7 +30,13 @@ function PreviewFact({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function TrekPreview({ trek, image }: TrekPreviewProps) {
+export function TrekPreview({
+  trek,
+  image,
+  comparing,
+  compareFull,
+  onToggleCompare,
+}: TrekPreviewProps) {
   return (
     <section
       aria-label={`${trek.name} preview`}
@@ -63,9 +72,20 @@ export function TrekPreview({ trek, image }: TrekPreviewProps) {
           />
         </dl>
 
-        <ButtonLink href={`/treks/${trek.slug}`} variant="dark" className="mt-auto w-full shrink-0">
-          View →
-        </ButtonLink>
+        <div className="mt-auto grid shrink-0 grid-cols-[1fr_auto] gap-2">
+          <ButtonLink href={`/treks/${trek.slug}`} variant="dark">
+            View →
+          </ButtonLink>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onToggleCompare}
+            disabled={!comparing && compareFull}
+            aria-pressed={comparing}
+          >
+            {comparing ? "Added ✓" : "+ Compare"}
+          </Button>
+        </div>
       </div>
     </section>
   );

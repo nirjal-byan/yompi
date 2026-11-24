@@ -3,7 +3,9 @@
 import Image from "next/image";
 import type { TrekSummary } from "@yompi/shared";
 import type { TrekImage } from "../lib/trek-image";
+import { useCompareSelection } from "../hooks/use-compare-selection";
 import { useTrekFilters } from "../hooks/use-trek-filters";
+import { CompareTray } from "./compare-tray";
 import { TrekCard } from "./trek-card";
 import { TrekFilters } from "./trek-filters";
 import { PREVIEW_HEIGHT_CLASS, TrekPreview } from "./trek-preview";
@@ -30,6 +32,8 @@ function PreparationNote() {
 
 export function TreksExplorer({ treks, images }: TreksExplorerProps) {
   const { bounds, filters, filtered, selected, select, ...actions } = useTrekFilters(treks);
+  const compare = useCompareSelection();
+  const comparedTreks = compare.slugs.flatMap((slug) => treks.filter((trek) => trek.slug === slug));
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
@@ -45,7 +49,13 @@ export function TreksExplorer({ treks, images }: TreksExplorerProps) {
 
       <div className="flex min-w-0 flex-col gap-6">
         {selected ? (
-          <TrekPreview trek={selected} image={images[selected.slug] ?? null} />
+          <TrekPreview
+            trek={selected}
+            image={images[selected.slug] ?? null}
+            comparing={compare.has(selected.slug)}
+            compareFull={compare.isFull}
+            onToggleCompare={() => compare.toggle(selected.slug)}
+          />
         ) : (
           <div
             className={`flex items-center justify-center border border-border-soft bg-surface p-6 text-sm text-muted ${PREVIEW_HEIGHT_CLASS}`}
@@ -53,6 +63,8 @@ export function TreksExplorer({ treks, images }: TreksExplorerProps) {
             No treks match these filters. Try widening them or reset.
           </div>
         )}
+
+        <CompareTray treks={comparedTreks} onRemove={compare.toggle} onClear={compare.clear} />
 
         <div className="flex flex-col gap-1">
           <h2 className="font-display text-3xl font-semibold">Pick your trail</h2>
