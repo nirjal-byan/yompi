@@ -27,6 +27,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+function SidePanel({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 border border-border-soft bg-surface p-5">
+      <h2 className="font-display text-xl font-semibold">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 function GlanceCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-1 border border-border-soft bg-surface p-4">
@@ -106,21 +115,9 @@ export function TrekDetail({ trek, info, itinerary }: TrekDetailProps) {
             </Section>
           )}
 
-          {info && info.permits.length > 0 && (
-            <Section title="Permits and fees">
-              <PermitList permits={info.permits} />
-            </Section>
-          )}
-
           {info && info.costs.length > 0 && (
             <Section title="Typical costs">
               <CostList costs={info.costs} />
-            </Section>
-          )}
-
-          {info && (info.permits.length > 0 || info.costs.length > 0) && (
-            <Section title="Plan your budget">
-              <BudgetCalculator trek={info} />
             </Section>
           )}
 
@@ -138,6 +135,18 @@ export function TrekDetail({ trek, info, itinerary }: TrekDetailProps) {
             <p>Check current permits, acclimatisation and recent trail reports before you go.</p>
             <p>Altitude is not a game. Descend and get help if you feel unwell.</p>
           </Notice>
+
+          {info && info.permits.length > 0 && (
+            <SidePanel title="Permits and fees">
+              <PermitList permits={info.permits} />
+            </SidePanel>
+          )}
+
+          {info && (info.permits.length > 0 || info.costs.length > 0) && (
+            <SidePanel title="Plan your budget">
+              <BudgetCalculator trek={info} />
+            </SidePanel>
+          )}
         </div>
       </div>
     </div>

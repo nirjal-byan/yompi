@@ -32,7 +32,7 @@ export function BudgetCalculator({ trek }: { trek: TrekInfo }) {
     setInput((current) => ({ ...current, ...changes }));
 
   return (
-    <div className="grid gap-6 border border-border-soft bg-surface p-6 md:grid-cols-2">
+    <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-4">
         <Field label="Group size" htmlFor="budget-group">
           <Input

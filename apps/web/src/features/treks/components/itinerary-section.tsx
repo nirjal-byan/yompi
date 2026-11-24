@@ -3,67 +3,44 @@
 import { useMemo, useState } from "react";
 import type { ItineraryDayInfo } from "@yompi/shared";
 import { Select } from "@/components/ui/select";
-import { cn } from "@/lib/cn";
 import { CITY_TRANSFER, START_CITIES, type StartCity } from "../data/city-transfers";
-import { formatMetres, formatNpr } from "../lib/format";
-import { buildJourney, gatewayCity, type JourneyStep } from "../lib/journey";
-import { TIER_LABEL } from "../lib/tiers";
-import { SourceNote } from "./source-note";
+import { buildJourney, gatewayCity } from "../lib/journey";
+import { ElevationStrip } from "./elevation-strip";
+import { ItineraryTimelineItem } from "./itinerary-timeline-item";
 
 const FALLBACK_CITY: StartCity = "KATHMANDU";
 
-function StepCard({ step }: { step: JourneyStep }) {
-  const isTransfer = step.kind === "TRANSFER";
-
-  return (
-    <li
-      className={cn(
-        "flex flex-col gap-2 border p-4",
-        isTransfer ? "border-border-soft bg-surface-muted" : "border-border-soft bg-surface",
-      )}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-[10px] text-accent uppercase">
-          Day {step.dayNumber}
-          {isTransfer ? " · Getting there" : ""}
-        </p>
-        {step.hoursText && <p className="text-xs text-muted">{step.hoursText}</p>}
-      </div>
-
-      <h3 className="font-display text-xl font-semibold">{step.title}</h3>
-      <p className="text-sm text-muted">
-        {step.fromPlace === step.toPlace ? step.fromPlace : `${step.fromPlace} → ${step.toPlace}`}
-      </p>
-
-      {step.overnightPlace && (
-        <p className="text-sm">
-          <span className="font-mono text-[10px] text-muted uppercase">Sleep</span>{" "}
-          <span className="font-semibold">{step.overnightPlace}</span>
-          {step.overnightElevationM ? ` · ${formatMetres(step.overnightElevationM)}` : ""}
-        </p>
-      )}
-
-      {step.stays.length > 0 && (
-        <ul className="flex flex-col gap-0.5 text-xs text-muted">
-          {step.stays.map((stay) => (
-            <li key={stay.name}>
-              Stay: {stay.name} ({TIER_LABEL[stay.tier]}
-              {stay.pricePerNightNpr ? `, ${formatNpr(stay.pricePerNightNpr)} / night` : ""})
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {step.notes && <p className="text-xs text-muted">{step.notes}</p>}
-      <SourceNote source={step.source} />
-    </li>
-  );
+function scrollToStep(key: string) {
+  document
+    .getElementById(`itinerary-${key}`)
+    ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 export function ItinerarySection({ days }: { days: ItineraryDayInfo[] }) {
   const [start, setStart] = useState<StartCity>(gatewayCity(days) ?? FALLBACK_CITY);
+  const [openKeys, setOpenKeys] = useState<Set<string>>(new Set());
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+
   const journey = useMemo(() => buildJourney(days, start), [days, start]);
   const transferDays = journey.filter((step) => step.kind === "TRANSFER").length;
+  const allOpen = journey.length > 0 && journey.every((step) => openKeys.has(step.key));
+
+  function toggle(key: string) {
+    setActiveKey(key);
+    setOpenKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+
+      return next;
+    });
+  }
+
+  function jumpTo(key: string) {
+    setActiveKey(key);
+    setOpenKeys((current) => new Set(current).add(key));
+    requestAnimationFrame(() => scrollToStep(key));
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -78,15 +55,35 @@ export function ItinerarySection({ days }: { days: ItineraryDayInfo[] }) {
             ))}
           </Select>
         </label>
-        <p className="text-sm text-muted" aria-live="polite">
-          {journey.length} days in total
-          {transferDays > 0 ? `, including ${transferDays} for getting there and back` : ""}
-        </p>
+        <div className="flex flex-col items-end gap-1">
+          <p className="text-sm text-muted" aria-live="polite">
+            {journey.length} days in total
+            {transferDays > 0 ? `, including ${transferDays} for getting there and back` : ""}
+          </p>
+          <button
+            type="button"
+            onClick={() =>
+              setOpenKeys(allOpen ? new Set() : new Set(journey.map((step) => step.key)))
+            }
+            className="text-sm underline"
+          >
+            {allOpen ? "Collapse all days" : "Expand all days"}
+          </button>
+        </div>
       </div>
 
+      <ElevationStrip steps={journey} activeKey={activeKey} onSelect={jumpTo} />
+
       <ol className="flex flex-col gap-3">
-        {journey.map((step) => (
-          <StepCard key={step.key} step={step} />
+        {journey.map((step, index) => (
+          <ItineraryTimelineItem
+            key={step.key}
+            step={step}
+            open={openKeys.has(step.key)}
+            active={step.key === activeKey}
+            isLast={index === journey.length - 1}
+            onToggle={() => toggle(step.key)}
+          />
         ))}
       </ol>
 
