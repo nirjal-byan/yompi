@@ -171,6 +171,21 @@ export const ConditionRowSchema = z.object({
 });
 export type ConditionRow = z.infer<typeof ConditionRowSchema>;
 
+export const ItineraryDayRowSchema = z.object({
+  slug,
+  trekSlug: slug,
+  dayNumber: wholeNumber(1, 60),
+  title: requiredText(160),
+  fromPlace: requiredText(120),
+  toPlace: requiredText(120),
+  overnightPlace: optionalText(120),
+  overnightElevationM: optionalWholeNumber(0, 9000),
+  hoursText: optionalText(60),
+  notes: optionalText(),
+  ...sourceFields,
+});
+export type ItineraryDayRow = z.infer<typeof ItineraryDayRowSchema>;
+
 export function isStale(verifiedAt: string | Date, now = new Date()): boolean {
   const cutoff = new Date(now);
   cutoff.setMonth(cutoff.getMonth() - STALE_AFTER_MONTHS);
@@ -349,7 +364,41 @@ export interface ConditionInfo extends Omit<
   source: SourceCitation;
 }
 
-export const ADMIN_RESOURCES = ["treks", "permits", "costs", "stays", "conditions"] as const;
+export interface ItineraryDayRecord extends SourcedRecord {
+  slug: string;
+  trekSlug: string;
+  dayNumber: number;
+  title: string;
+  fromPlace: string;
+  toPlace: string;
+  overnightPlace: string | null;
+  overnightElevationM: number | null;
+  hoursText: string | null;
+  notes: string | null;
+}
+
+export interface ItineraryStay {
+  name: string;
+  tier: StayTier;
+  pricePerNightNpr: number | null;
+}
+
+export interface ItineraryDayInfo extends Omit<
+  ItineraryDayRecord,
+  "sourceName" | "sourceUrl" | "verifiedAt" | "trekSlug"
+> {
+  source: SourceCitation;
+  stays: ItineraryStay[];
+}
+
+export const ADMIN_RESOURCES = [
+  "treks",
+  "permits",
+  "costs",
+  "stays",
+  "conditions",
+  "itinerary",
+] as const;
 export type AdminResource = (typeof ADMIN_RESOURCES)[number];
 
 export interface AttentionItem {
