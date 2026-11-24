@@ -9,7 +9,6 @@ const pixel = Pixelify_Sans({ variable: "--font-pixel", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: { default: "Yompi - Your Himalayan Buddy", template: "%s | Yompi" },
   description: "Yompi, your Himalayan buddy for trekking in Nepal.",
-  icons: { icon: "/brand/yompi-mark.png" },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
