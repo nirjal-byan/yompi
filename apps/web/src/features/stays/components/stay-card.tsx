@@ -1,12 +1,7 @@
-import type { StayInfo, StayTier } from "@yompi/shared";
+import type { StayInfo } from "@yompi/shared";
 import { SourceNote } from "@/features/treks/components/source-note";
 import { formatMetres, formatNpr } from "@/features/treks/lib/format";
-
-export const TIER_LABEL: Record<StayTier, string> = {
-  BUDGET: "Budget",
-  STANDARD: "Standard",
-  COMFORT: "Comfort",
-};
+import { TIER_LABEL } from "@/features/treks/lib/tiers";
 
 export function StayCard({ stay }: { stay: StayInfo }) {
   return (

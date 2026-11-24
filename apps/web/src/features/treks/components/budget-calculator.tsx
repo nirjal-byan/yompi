@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import type { AccommodationTier, TrekInfo } from "@yompi/shared";
 import { Field, Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { calculateBudget, TIER_LABEL, type BudgetInput } from "../lib/budget";
+import { calculateBudget, type BudgetInput } from "../lib/budget";
 import { formatNpr } from "../lib/format";
+import { TIER_LABEL } from "../lib/tiers";
 
 const MAX_GROUP_SIZE = 30;
 const MAX_PORTERS = 20;

@@ -5,6 +5,7 @@ import type {
   CostUnit,
   PermitInfo,
 } from "@yompi/shared";
+import { TIER_LABEL } from "./tiers";
 
 export interface BudgetInput {
   groupSize: number;
@@ -30,12 +31,6 @@ const LODGING_CATEGORY: Record<AccommodationTier, CostCategory> = {
   BUDGET: "LODGING_BUDGET",
   STANDARD: "LODGING_STANDARD",
   COMFORT: "LODGING_COMFORT",
-};
-
-export const TIER_LABEL: Record<AccommodationTier, string> = {
-  BUDGET: "Budget",
-  STANDARD: "Standard",
-  COMFORT: "Comfort",
 };
 
 function findRate(costs: CostInfo[], category: CostCategory, unit: CostUnit): number | null {

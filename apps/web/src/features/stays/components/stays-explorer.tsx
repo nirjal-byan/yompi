@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import type { StayInfo, StayTier } from "@yompi/shared";
 import { Select } from "@/components/ui/select";
-import { StayCard, TIER_LABEL } from "./stay-card";
+import { TIER_LABEL } from "@/features/treks/lib/tiers";
+import { StayCard } from "./stay-card";
 
 const ALL = "ALL";
 

@@ -1,4 +1,4 @@
-import type { TrekInfo, TrekSummary } from "@yompi/shared";
+import type { ItineraryDayInfo, TrekInfo, TrekSummary } from "@yompi/shared";
 import { Tag } from "@/components/ui/tag";
 import { formatDays, formatMetres } from "../lib/format";
 import { findTrekImage } from "../lib/trek-image";
@@ -6,6 +6,7 @@ import { BudgetCalculator } from "./budget-calculator";
 import { BreadcrumbTrail } from "./breadcrumb-trail";
 import { CostList } from "./cost-list";
 import { DifficultyPanel } from "./difficulty-panel";
+import { ItinerarySection } from "./itinerary-section";
 import { PermitList } from "./permit-list";
 import { SourceNote } from "./source-note";
 import { TrekFactsCard } from "./trek-facts-card";
@@ -14,6 +15,7 @@ import { TrekPhoto } from "./trek-photo";
 interface TrekDetailProps {
   trek: TrekSummary;
   info: TrekInfo | null;
+  itinerary: ItineraryDayInfo[];
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -43,7 +45,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-export function TrekDetail({ trek, info }: TrekDetailProps) {
+export function TrekDetail({ trek, info, itinerary }: TrekDetailProps) {
   const glance = [
     { label: "Duration", value: formatDays(trek) },
     trek.highestPointM && { label: "Highest point", value: formatMetres(trek.highestPointM) },
@@ -85,6 +87,17 @@ export function TrekDetail({ trek, info }: TrekDetailProps) {
               ))}
             </div>
             {info?.source && <SourceNote source={info.source} />}
+          </Section>
+
+          <Section title="Itinerary">
+            {itinerary.length > 0 ? (
+              <ItinerarySection days={itinerary} />
+            ) : (
+              <p className="border-l-2 border-border-soft pl-3 text-sm text-muted">
+                No day-by-day plan has been added for this trek yet. We only show itineraries that
+                come with a source.
+              </p>
+            )}
           </Section>
 
           {info?.difficulty && (

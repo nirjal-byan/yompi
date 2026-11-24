@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { TrekDetail } from "@/features/treks/components/trek-detail";
-import { getTrekInfo, getTreks } from "@/features/treks/services/treks-api";
+import { getTrekInfo, getTrekItinerary, getTreks } from "@/features/treks/services/treks-api";
 
 interface TrekPageProps {
   params: Promise<{ slug: string }>;
@@ -16,9 +16,12 @@ async function TrekDetails({ params }: TrekPageProps) {
   const trek = treks.find((candidate) => candidate.slug === slug);
   if (!trek) notFound();
 
-  const info = await getTrekInfo(trek.slug).catch(() => null);
+  const [info, itinerary] = await Promise.all([
+    getTrekInfo(trek.slug).catch(() => null),
+    getTrekItinerary(trek.slug).catch(() => []),
+  ]);
 
-  return <TrekDetail trek={trek} info={info} />;
+  return <TrekDetail trek={trek} info={info} itinerary={itinerary} />;
 }
 
 export default function TrekPage(props: TrekPageProps) {
