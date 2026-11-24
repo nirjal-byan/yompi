@@ -380,6 +380,84 @@ export const CONFIGS: Record<AdminResource, ResourceConfig> = {
       { header: "Checked", value: (r) => text(r, "verifiedAt") },
     ],
   },
+  itinerary: {
+    key: "itinerary",
+    singular: "itinerary day",
+    plural: "Itinerary",
+    intro:
+      "The recommended day-by-day plan for a trek. If day 1 starts in Kathmandu or Pokhara and the last day ends there, visitors can pick either city as their starting point and Yompi adds the travel between them.",
+    nameField: "title",
+    fields: [
+      {
+        name: "title",
+        label: "Day title",
+        type: "text",
+        required: true,
+        placeholder: "e.g. Phakding to Namche Bazaar",
+      },
+      {
+        name: "slug",
+        label: "Id",
+        type: "text",
+        required: true,
+        help: "Short id (lowercase, dashes), for example everest-base-camp-day-2. It cannot be changed later.",
+      },
+      {
+        name: "trekSlug",
+        label: "Trek",
+        type: "trek",
+        required: true,
+        emptyLabel: "Choose a trek",
+      },
+      {
+        name: "dayNumber",
+        label: "Day number",
+        type: "number",
+        required: true,
+        help: "1 is the first day of the plan. Each trek needs unique day numbers.",
+      },
+      {
+        name: "fromPlace",
+        label: "Starts at",
+        type: "text",
+        required: true,
+        help: "Write Kathmandu or Pokhara exactly if the day starts in that city.",
+      },
+      {
+        name: "toPlace",
+        label: "Ends at",
+        type: "text",
+        required: true,
+        help: "On the last day, write the city you return to (Kathmandu or Pokhara).",
+      },
+      {
+        name: "overnightPlace",
+        label: "Where you sleep",
+        type: "text",
+        help: "Optional. If a stay with the same village name exists, it is shown under this night.",
+      },
+      {
+        name: "overnightElevationM",
+        label: "Sleeping elevation (m)",
+        type: "number",
+        help: "Optional. Only if the source prints it.",
+      },
+      {
+        name: "hoursText",
+        label: "Time on the day",
+        type: "text",
+        placeholder: "e.g. 5-6 hours",
+        help: "Optional, as the source states it.",
+      },
+      { name: "notes", label: "Notes", type: "textarea", help: "Optional." },
+    ],
+    columns: [
+      { header: "Trek", value: (r) => text(r, "trekSlug") },
+      { header: "Day", value: (r) => text(r, "dayNumber") },
+      { header: "Plan", value: (r) => text(r, "title") },
+      { header: "Sleep", value: (r) => text(r, "overnightPlace") || "-" },
+    ],
+  },
 };
 
 export function isResource(value: string): value is AdminResource {

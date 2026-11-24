@@ -4,6 +4,7 @@ import {
   ConditionIcon,
   CostIcon,
   DashboardIcon,
+  ItineraryIcon,
   PermitIcon,
   StayIcon,
   TrekIcon,
@@ -36,6 +37,12 @@ export const NAV_GROUPS: NavGroup[] = [
       { href: "/admin/treks", label: "Treks", icon: TrekIcon, countKey: "treks" },
       { href: "/admin/permits", label: "Permits", icon: PermitIcon, countKey: "permits" },
       { href: "/admin/costs", label: "Costs", icon: CostIcon, countKey: "costs" },
+      {
+        href: "/admin/itinerary",
+        label: "Itinerary",
+        icon: ItineraryIcon,
+        countKey: "itinerary",
+      },
       { href: "/admin/stays", label: "Stays", icon: StayIcon, countKey: "stays" },
       {
         href: "/admin/conditions",
@@ -52,6 +59,7 @@ const SECTION_LABEL: Record<string, string> = {
   permits: "Permits",
   costs: "Costs",
   stays: "Stays",
+  itinerary: "Itinerary",
   conditions: "Conditions",
 };
 

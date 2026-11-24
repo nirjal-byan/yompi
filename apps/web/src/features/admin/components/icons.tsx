@@ -57,6 +57,12 @@ export const ConditionIcon = (p: SVGProps<SVGSVGElement>) => (
   </Icon>
 );
 
+export const ItineraryIcon = (p: SVGProps<SVGSVGElement>) => (
+  <Icon {...p}>
+    <path d="M4 5h4v4H4zM4 15h4v4H4zM12 7h8M12 17h8M6 9v6" />
+  </Icon>
+);
+
 export const ExternalIcon = (p: SVGProps<SVGSVGElement>) => (
   <Icon {...p}>
     <path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6" />
