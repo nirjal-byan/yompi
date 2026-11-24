@@ -23,6 +23,7 @@
     "db:import-geo": "pnpm --filter @yompi/database run import-geo",
     "db:build-profiles": "pnpm --filter @yompi/database run build-profiles",
     "db:import-trek-data": "pnpm --filter @yompi/database run import-trek-data",
+    "db:import-itinerary": "pnpm --filter @yompi/database run import-itinerary",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

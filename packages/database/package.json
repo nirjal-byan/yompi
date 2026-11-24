@@ -22,6 +22,7 @@
     "build": "prisma generate --schema=./prisma/schema.prisma && tsc",
     "import-geo": "node scripts/import-geo.mjs",
     "build-profiles": "node scripts/build-trail-profiles.mjs",
-    "import-trek-data": "node scripts/import-trek-data.mjs"
+    "import-trek-data": "node scripts/import-trek-data.mjs",
+    "import-itinerary": "node scripts/import-itinerary.mjs"
   }
 }

@@ -228,6 +228,7 @@ model Trek {
   costs         CostItem[]
   stays         Stay[]
   conditions    Condition[]
+  itinerary     ItineraryDay[]
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 }
@@ -310,4 +311,26 @@ model Condition {
   updatedAt  DateTime          @updatedAt
 
   @@index([trekId])
+}
+
+model ItineraryDay {
+  id                  String   @id @default(uuid())
+  slug                String   @unique
+  trekId              String
+  trek                Trek     @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  dayNumber           Int
+  title               String
+  fromPlace           String
+  toPlace             String
+  overnightPlace      String?
+  overnightElevationM Int?
+  hoursText           String?
+  notes               String?
+  sourceName          String
+  sourceUrl           String
+  verifiedAt          DateTime
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([trekId, dayNumber])
 }
