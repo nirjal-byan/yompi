@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { isSampleSource } from "@yompi/shared";
+import { SampleDataBanner } from "@/components/ui/sample-data-banner";
 import { ConditionsExplorer } from "@/features/conditions/components/conditions-explorer";
 import { getConditions } from "@/features/conditions/services/conditions-api";
 import { BreadcrumbTrail } from "@/features/treks/components/breadcrumb-trail";
@@ -19,7 +21,17 @@ async function ConditionList() {
     );
   }
 
-  return <ConditionsExplorer conditions={conditions} />;
+  return (
+    <>
+      {conditions.some((condition) => isSampleSource(condition.source.url)) && (
+        <SampleDataBanner>
+          Reports titled &ldquo;Sample&rdquo; are invented examples, not live trail information.
+          Never plan a trek or judge safety from them.
+        </SampleDataBanner>
+      )}
+      <ConditionsExplorer conditions={conditions} />
+    </>
+  );
 }
 
 export default function ConditionsPage() {

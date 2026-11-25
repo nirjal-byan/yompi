@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { isSampleSource } from "@yompi/shared";
+import { SampleDataBanner } from "@/components/ui/sample-data-banner";
 import { BreadcrumbTrail } from "@/features/treks/components/breadcrumb-trail";
 import { StaysExplorer } from "@/features/stays/components/stays-explorer";
 import { getStays } from "@/features/stays/services/stays-api";
@@ -18,7 +20,17 @@ async function StayList() {
     );
   }
 
-  return <StaysExplorer stays={stays} />;
+  return (
+    <>
+      {stays.some((stay) => isSampleSource(stay.source.url)) && (
+        <SampleDataBanner>
+          Stays named &ldquo;Sample Teahouse&rdquo; and their prices are invented. Do not book or
+          budget from them.
+        </SampleDataBanner>
+      )}
+      <StaysExplorer stays={stays} />
+    </>
+  );
 }
 
 export default function StaysPage() {
