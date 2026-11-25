@@ -26,6 +26,10 @@ export type ConditionCategory = z.infer<typeof ConditionCategorySchema>;
 
 export const CONDITION_STALE_AFTER_DAYS = 30;
 
+export const SAMPLE_SOURCE_URL = "https://example.org/yompi-sample-data";
+
+export const isSampleSource = (url: string) => url === SAMPLE_SOURCE_URL;
+
 export const STALE_AFTER_MONTHS = 18;
 
 const blankToUndefined = (value: unknown) =>

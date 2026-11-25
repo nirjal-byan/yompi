@@ -24,6 +24,7 @@
     "db:build-profiles": "pnpm --filter @yompi/database run build-profiles",
     "db:import-trek-data": "pnpm --filter @yompi/database run import-trek-data",
     "db:import-itinerary": "pnpm --filter @yompi/database run import-itinerary",
+    "db:import-stays-conditions": "pnpm --filter @yompi/database run import-stays-conditions",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

@@ -1,0 +1,81 @@
+[
+  {
+    "slug": "sample-late-autumn-weather",
+    "title": "Sample: settled late-autumn weather",
+    "summary": "Mostly clear mornings with cloud building in the afternoon. Nights are well below freezing above 4000 m, so carry a warm sleeping bag and layers. (Invented example for late November, not a live report.)",
+    "category": "WEATHER",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-ebc-cold-nights",
+    "title": "Sample: very cold nights around Gorak Shep",
+    "summary": "Clear and windy up high, with hard frost overnight. Water bottles and hoses can freeze. (Invented example for late November, not a live report.)",
+    "category": "WEATHER",
+    "trekSlug": "everest-base-camp",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-lukla-morning-flights",
+    "title": "Sample: Lukla flights best early",
+    "summary": "Morning flights are running more reliably than afternoon ones. Keep a spare day in your plan for weather delays. (Invented example for late November, not a live report.)",
+    "category": "TRAIL_REPORT",
+    "trekSlug": "everest-base-camp",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-thorong-la-ice",
+    "title": "Sample: icy early start on Thorong La",
+    "summary": "Patches of ice on the climb to the pass and strong wind by late morning. Start before dawn and bring microspikes. (Invented example for late November, not a live report.)",
+    "category": "TRAIL_REPORT",
+    "trekSlug": "annapurna-circuit",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-abc-shaded-ice",
+    "title": "Sample: icy shaded sections above Deurali",
+    "summary": "Shaded stretches stay frozen until late morning. Check with lodges about avalanche risk after any fresh snow. (Invented example for late November, not a live report.)",
+    "category": "TRAIL_REPORT",
+    "trekSlug": "annapurna-base-camp",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-mardi-frost",
+    "title": "Sample: frost and wind on the Mardi ridge",
+    "summary": "Clear views in the morning with cloud rising from below by midday. The upper ridge is frosty and exposed. (Invented example for late November, not a live report.)",
+    "category": "WEATHER",
+    "trekSlug": "mardi-himal",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-manaslu-larkya-la",
+    "title": "Sample: snow patches near Larkya La",
+    "summary": "Firm snow on the upper approach. Cross early and check with your guide before setting off. (Invented example for late November, not a live report.)",
+    "category": "TRAIL_REPORT",
+    "trekSlug": "manaslu-circuit",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  },
+  {
+    "slug": "sample-langtang-dry",
+    "title": "Sample: dry, clear days in Langtang",
+    "summary": "Good visibility and dry trails. Temperatures drop sharply once the sun leaves the valley. (Invented example for late November, not a live report.)",
+    "category": "WEATHER",
+    "trekSlug": "langtang-valley",
+    "sourceName": "Sample data (invented for demonstration)",
+    "sourceUrl": "https://example.org/yompi-sample-data",
+    "verifiedAt": "2026-11-25"
+  }
+]
