@@ -1,4 +1,5 @@
-import type { ItineraryDayInfo, TrekInfo, TrekSummary } from "@yompi/shared";
+import type { ConditionInfo, ItineraryDayInfo, TrekInfo, TrekSummary } from "@yompi/shared";
+import { TrekReports } from "@/features/conditions/components/trek-reports";
 import { Tag } from "@/components/ui/tag";
 import { formatDays, formatMetres } from "../lib/format";
 import { findTrekImage } from "../lib/trek-image";
@@ -16,6 +17,7 @@ interface TrekDetailProps {
   trek: TrekSummary;
   info: TrekInfo | null;
   itinerary: ItineraryDayInfo[];
+  conditions: ConditionInfo[] | null;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -54,7 +56,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-export function TrekDetail({ trek, info, itinerary }: TrekDetailProps) {
+export function TrekDetail({ trek, info, itinerary, conditions }: TrekDetailProps) {
   const glance = [
     { label: "Duration", value: formatDays(trek) },
     trek.highestPointM && { label: "Highest point", value: formatMetres(trek.highestPointM) },
@@ -135,6 +137,14 @@ export function TrekDetail({ trek, info, itinerary }: TrekDetailProps) {
             <p>Check current permits, acclimatisation and recent trail reports before you go.</p>
             <p>Altitude is not a game. Descend and get help if you feel unwell.</p>
           </Notice>
+
+          <SidePanel title="Trail reports">
+            {conditions ? (
+              <TrekReports conditions={conditions} />
+            ) : (
+              <p className="text-sm text-muted">Reports could not be loaded right now.</p>
+            )}
+          </SidePanel>
 
           {info && info.permits.length > 0 && (
             <SidePanel title="Permits and fees">

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { conditionsForTrek } from "@/features/conditions/lib/conditions-for-trek";
+import { getConditions } from "@/features/conditions/services/conditions-api";
 import { TrekDetail } from "@/features/treks/components/trek-detail";
 import { getTrekInfo, getTrekItinerary, getTreks } from "@/features/treks/services/treks-api";
 
@@ -16,12 +18,20 @@ async function TrekDetails({ params }: TrekPageProps) {
   const trek = treks.find((candidate) => candidate.slug === slug);
   if (!trek) notFound();
 
-  const [info, itinerary] = await Promise.all([
+  const [info, itinerary, conditions] = await Promise.all([
     getTrekInfo(trek.slug).catch(() => null),
     getTrekItinerary(trek.slug).catch(() => []),
+    getConditions().catch(() => null),
   ]);
 
-  return <TrekDetail trek={trek} info={info} itinerary={itinerary} />;
+  return (
+    <TrekDetail
+      trek={trek}
+      info={info}
+      itinerary={itinerary}
+      conditions={conditions && conditionsForTrek(conditions, trek.slug)}
+    />
+  );
 }
 
 export default function TrekPage(props: TrekPageProps) {
