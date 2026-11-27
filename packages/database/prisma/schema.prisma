@@ -114,12 +114,13 @@ model TrailCondition {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  name      String
-  sessions  Session[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id         String      @id @default(uuid())
+  email      String      @unique
+  name       String
+  sessions   Session[]
+  savedTreks SavedTrek[]
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
 }
 
 model LoginToken {
@@ -209,12 +210,12 @@ enum CostUnit {
 }
 
 model Trek {
-  id            String       @id @default(uuid())
-  slug          String       @unique
+  id            String         @id @default(uuid())
+  slug          String         @unique
   name          String
   region        String
   trailId       String?
-  trail         GeoFeature?  @relation(fields: [trailId], references: [id], onDelete: SetNull)
+  trail         GeoFeature?    @relation(fields: [trailId], references: [id], onDelete: SetNull)
   minDays       Int
   maxDays       Int
   highestPointM Int?
@@ -229,8 +230,9 @@ model Trek {
   stays         Stay[]
   conditions    Condition[]
   itinerary     ItineraryDay[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  savedBy       SavedTrek[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Permit {
@@ -333,4 +335,14 @@ model ItineraryDay {
   updatedAt           DateTime @updatedAt
 
   @@unique([trekId, dayNumber])
+}
+
+model SavedTrek {
+  userId    String
+  trekId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trek      Trek     @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, trekId])
 }
