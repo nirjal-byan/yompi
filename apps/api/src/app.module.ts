@@ -9,6 +9,7 @@ import { AdminModule } from "./modules/admin/admin.module.js";
 import { AuthModule } from "./modules/auth/auth.module.js";
 import { GeoModule } from "./modules/geo/geo.module.js";
 import { ConditionsModule } from "./modules/conditions/conditions.module.js";
+import { SavedTreksModule } from "./modules/saved-treks/saved-treks.module.js";
 import { StaysModule } from "./modules/stays/stays.module.js";
 import { HealthModule } from "./modules/health/health.module.js";
 
@@ -24,6 +25,7 @@ import { HealthModule } from "./modules/health/health.module.js";
     AdminModule,
     GeoModule,
     StaysModule,
+    SavedTreksModule,
     ConditionsModule,
     HealthModule,
   ],
