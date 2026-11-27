@@ -1,5 +1,6 @@
 import type { ConditionInfo, ItineraryDayInfo, TrekInfo, TrekSummary } from "@yompi/shared";
 import { TrekReports } from "@/features/conditions/components/trek-reports";
+import { SaveTrekButton } from "@/features/saved-treks/components/save-trek-button";
 import { Tag } from "@/components/ui/tag";
 import { formatDays, formatMetres } from "../lib/format";
 import { findTrekImage } from "../lib/trek-image";
@@ -79,7 +80,10 @@ export function TrekDetail({ trek, info, itinerary, conditions }: TrekDetailProp
           <h1 className="font-display text-4xl font-semibold sm:text-5xl">{trek.name}</h1>
           <p className="text-muted">{trek.region}</p>
         </div>
-        {info?.difficulty && <Tag>{`Difficulty ${info.difficulty.stars} of 5`}</Tag>}
+        <div className="flex flex-wrap items-start gap-3">
+          {info?.difficulty && <Tag>{`Difficulty ${info.difficulty.stars} of 5`}</Tag>}
+          <SaveTrekButton slug={trek.slug} />
+        </div>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
