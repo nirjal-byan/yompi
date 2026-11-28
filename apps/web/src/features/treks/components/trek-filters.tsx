@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { FILTER_STEPS, type TrekBounds, type TrekFilters } from "../lib/filter-treks";
 import { formatMetres, formatNpr } from "../lib/format";
 
@@ -54,6 +56,7 @@ function RangeField({ label, value, max, step, display, onChange }: RangeProps) 
 
 export function TrekFilters(props: TrekFiltersProps) {
   const { bounds, filters, resultCount } = props;
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <aside
@@ -62,54 +65,70 @@ export function TrekFilters(props: TrekFiltersProps) {
     >
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-semibold">Filters</h2>
-        <span className="text-xs text-muted" aria-live="polite">
-          {resultCount} {resultCount === 1 ? "trek" : "treks"}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted" aria-live="polite">
+            {resultCount} {resultCount === 1 ? "trek" : "treks"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpanded((current) => !current)}
+            aria-expanded={expanded}
+            aria-controls="trek-filter-fields"
+            className="border border-border-soft px-3 py-1.5 text-sm lg:hidden"
+          >
+            {expanded ? "Hide" : "Show"}
+          </button>
+        </div>
       </div>
 
-      <FilterGroup title="Region">
-        {bounds.regions.map((region) => (
-          <label key={region} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={filters.regions.includes(region)}
-              onChange={() => props.onToggleRegion(region)}
-              className="accent-foreground"
+      <div
+        id="trek-filter-fields"
+        className={cn("flex-col gap-4 lg:flex", expanded ? "flex" : "hidden")}
+      >
+        <FilterGroup title="Region">
+          {bounds.regions.map((region) => (
+            <label key={region} className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={filters.regions.includes(region)}
+                onChange={() => props.onToggleRegion(region)}
+                className="accent-foreground"
+              />
+              {region}
+            </label>
+          ))}
+        </FilterGroup>
+
+        {bounds.maxCostNpr > 0 && (
+          <FilterGroup title="Price per person">
+            <RangeField
+              label="Up to"
+              value={filters.maxCostNpr}
+              max={bounds.maxCostNpr}
+              step={FILTER_STEPS.cost}
+              display={formatNpr(filters.maxCostNpr)}
+              onChange={props.onMaxCost}
             />
-            {region}
-          </label>
-        ))}
-      </FilterGroup>
+          </FilterGroup>
+        )}
 
-      {bounds.maxCostNpr > 0 && (
-        <FilterGroup title="Price per person">
-          <RangeField
-            label="Up to"
-            value={filters.maxCostNpr}
-            max={bounds.maxCostNpr}
-            step={FILTER_STEPS.cost}
-            display={formatNpr(filters.maxCostNpr)}
-            onChange={props.onMaxCost}
-          />
-        </FilterGroup>
-      )}
+        {bounds.maxAltitudeM > 0 && (
+          <FilterGroup title="Altitude">
+            <RangeField
+              label="Up to"
+              value={filters.maxAltitudeM}
+              max={bounds.maxAltitudeM}
+              step={FILTER_STEPS.altitude}
+              display={formatMetres(filters.maxAltitudeM)}
+              onChange={props.onMaxAltitude}
+            />
+          </FilterGroup>
+        )}
 
-      {bounds.maxAltitudeM > 0 && (
-        <FilterGroup title="Altitude">
-          <RangeField
-            label="Up to"
-            value={filters.maxAltitudeM}
-            max={bounds.maxAltitudeM}
-            step={FILTER_STEPS.altitude}
-            display={formatMetres(filters.maxAltitudeM)}
-            onChange={props.onMaxAltitude}
-          />
-        </FilterGroup>
-      )}
-
-      <Button type="button" variant="soft" onClick={props.onReset}>
-        Reset filters
-      </Button>
+        <Button type="button" variant="soft" onClick={props.onReset}>
+          Reset filters
+        </Button>
+      </div>
     </aside>
   );
 }

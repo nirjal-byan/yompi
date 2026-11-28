@@ -15,7 +15,7 @@ export async function NavbarActions() {
 
   return (
     <div className="flex items-center gap-2">
-      <ButtonLink href="/treks" className="h-10">
+      <ButtonLink href="/treks" className="hidden h-10 sm:inline-flex">
         Plan a trek <span aria-hidden>↗</span>
       </ButtonLink>
       <LogoutButton className="h-10 px-3 text-xs" />
