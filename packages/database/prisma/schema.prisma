@@ -231,6 +231,7 @@ model Trek {
   conditions    Condition[]
   itinerary     ItineraryDay[]
   savedBy       SavedTrek[]
+  photo         TrekPhoto?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 }
@@ -345,4 +346,15 @@ model SavedTrek {
   createdAt DateTime @default(now())
 
   @@id([userId, trekId])
+}
+
+model TrekPhoto {
+  trekId     String   @id
+  trek       Trek     @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  fileName   String
+  author     String
+  license    String
+  licenseUrl String?
+  sourceUrl  String?
+  updatedAt  DateTime @updatedAt
 }

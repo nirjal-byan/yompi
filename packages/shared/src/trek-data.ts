@@ -190,6 +190,25 @@ export const ItineraryDayRowSchema = z.object({
 });
 export type ItineraryDayRow = z.infer<typeof ItineraryDayRowSchema>;
 
+export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+
+export const PhotoCreditSchema = z.object({
+  author: requiredText(120),
+  license: requiredText(80),
+  licenseUrl: z.preprocess(blankToUndefined, sourceUrl.optional()),
+  sourceUrl: z.preprocess(blankToUndefined, sourceUrl.optional()),
+});
+export type PhotoCredit = z.infer<typeof PhotoCreditSchema>;
+
+export interface TrekPhotoInfo {
+  trekSlug: string;
+  fileName: string;
+  author: string;
+  license: string;
+  licenseUrl: string | null;
+  sourceUrl: string | null;
+}
+
 export function isStale(verifiedAt: string | Date, now = new Date()): boolean {
   const cutoff = new Date(now);
   cutoff.setMonth(cutoff.getMonth() - STALE_AFTER_MONTHS);
