@@ -4,7 +4,13 @@ import { Suspense } from "react";
 import { conditionsForTrek } from "@/features/conditions/lib/conditions-for-trek";
 import { getConditions } from "@/features/conditions/services/conditions-api";
 import { TrekDetail } from "@/features/treks/components/trek-detail";
-import { getTrekInfo, getTrekItinerary, getTreks } from "@/features/treks/services/treks-api";
+import { findTrekImage } from "@/features/treks/lib/trek-image";
+import {
+  getTrekInfo,
+  getTrekItinerary,
+  getTrekPhotos,
+  getTreks,
+} from "@/features/treks/services/treks-api";
 
 interface TrekPageProps {
   params: Promise<{ slug: string }>;
@@ -18,10 +24,11 @@ async function TrekDetails({ params }: TrekPageProps) {
   const trek = treks.find((candidate) => candidate.slug === slug);
   if (!trek) notFound();
 
-  const [info, itinerary, conditions] = await Promise.all([
+  const [info, itinerary, conditions, photos] = await Promise.all([
     getTrekInfo(trek.slug).catch(() => null),
     getTrekItinerary(trek.slug).catch(() => []),
     getConditions().catch(() => null),
+    getTrekPhotos().catch(() => []),
   ]);
 
   return (
@@ -29,6 +36,7 @@ async function TrekDetails({ params }: TrekPageProps) {
       trek={trek}
       info={info}
       itinerary={itinerary}
+      image={findTrekImage(trek.slug, photos)}
       conditions={conditions && conditionsForTrek(conditions, trek.slug)}
     />
   );

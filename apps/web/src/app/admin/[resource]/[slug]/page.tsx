@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { TrekPhotoUpload } from "@/features/admin/components/trek-photo-upload";
 import { ResourceForm } from "@/features/admin/components/resource-form";
 import { isResource } from "@/features/admin/config";
 
@@ -8,5 +9,10 @@ export default async function AdminEditPage({ params }: PageProps<"/admin/[resou
   const { resource, slug } = await params;
   if (!isResource(resource)) notFound();
 
-  return <ResourceForm key={`${resource}/${slug}`} resource={resource} slug={slug} />;
+  return (
+    <>
+      <ResourceForm key={`${resource}/${slug}`} resource={resource} slug={slug} />
+      {resource === "treks" && <TrekPhotoUpload key={slug} slug={slug} />}
+    </>
+  );
 }

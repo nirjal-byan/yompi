@@ -1,4 +1,4 @@
-import type { ItineraryDayInfo, TrekInfo, TrekSummary } from "@yompi/shared";
+import type { ItineraryDayInfo, TrekInfo, TrekPhotoInfo, TrekSummary } from "@yompi/shared";
 import { API_URL } from "@/lib/config";
 
 async function getJson<T>(path: string): Promise<T> {
@@ -10,6 +10,10 @@ async function getJson<T>(path: string): Promise<T> {
 
 export function getTreks(): Promise<TrekSummary[]> {
   return getJson<TrekSummary[]>("/treks");
+}
+
+export function getTrekPhotos(): Promise<TrekPhotoInfo[]> {
+  return getJson<TrekPhotoInfo[]>("/trek-photos");
 }
 
 export function getTrekItinerary(slug: string): Promise<ItineraryDayInfo[]> {

@@ -3,7 +3,7 @@ import { TrekReports } from "@/features/conditions/components/trek-reports";
 import { SaveTrekButton } from "@/features/saved-treks/components/save-trek-button";
 import { Tag } from "@/components/ui/tag";
 import { formatDays, formatMetres } from "../lib/format";
-import { findTrekImage } from "../lib/trek-image";
+import type { TrekImage } from "../lib/trek-image";
 import { BudgetCalculator } from "./budget-calculator";
 import { BreadcrumbTrail } from "./breadcrumb-trail";
 import { CostList } from "./cost-list";
@@ -19,6 +19,7 @@ interface TrekDetailProps {
   info: TrekInfo | null;
   itinerary: ItineraryDayInfo[];
   conditions: ConditionInfo[] | null;
+  image: TrekImage | null;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -57,7 +58,7 @@ function Notice({ title, children }: { title: string; children: React.ReactNode 
   );
 }
 
-export function TrekDetail({ trek, info, itinerary, conditions }: TrekDetailProps) {
+export function TrekDetail({ trek, info, itinerary, conditions, image }: TrekDetailProps) {
   const glance = [
     { label: "Duration", value: formatDays(trek) },
     trek.highestPointM && { label: "Highest point", value: formatMetres(trek.highestPointM) },
@@ -89,7 +90,7 @@ export function TrekDetail({ trek, info, itinerary, conditions }: TrekDetailProp
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="flex flex-col gap-8">
           <TrekPhoto
-            image={findTrekImage(trek.slug)}
+            image={image}
             alt={`${trek.name} landscape`}
             caption={`Photo illustration · ${trek.region}`}
             className="min-h-[260px]"

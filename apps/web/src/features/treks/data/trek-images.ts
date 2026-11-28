@@ -2,7 +2,7 @@ export interface ImageCredit {
   author: string;
   license: string;
   licenseUrl: string | null;
-  sourceUrl: string;
+  sourceUrl: string | null;
 }
 
 export const TREK_IMAGE_CREDITS: Record<string, ImageCredit> = {

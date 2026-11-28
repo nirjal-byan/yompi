@@ -9,22 +9,24 @@ interface TrekPhotoProps {
   className?: string;
 }
 
+function CreditLink({ href, children }: { href: string | null; children: React.ReactNode }) {
+  if (!href) return <>{children}</>;
+
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
+      {children}
+    </a>
+  );
+}
+
 function Credit({ credit }: { credit: NonNullable<TrekImage["credit"]> }) {
+  const fromCommons = credit.sourceUrl?.includes("commons.wikimedia.org");
+
   return (
     <>
-      Photo:{" "}
-      <a href={credit.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-        {credit.author}
-      </a>
-      ,{" "}
-      {credit.licenseUrl ? (
-        <a href={credit.licenseUrl} target="_blank" rel="noopener noreferrer" className="underline">
-          {credit.license}
-        </a>
-      ) : (
-        credit.license
-      )}{" "}
-      via Wikimedia Commons
+      Photo: <CreditLink href={credit.sourceUrl}>{credit.author}</CreditLink>,{" "}
+      <CreditLink href={credit.licenseUrl}>{credit.license}</CreditLink>
+      {fromCommons ? " via Wikimedia Commons" : ""}
     </>
   );
 }
@@ -40,6 +42,7 @@ export function TrekPhoto({ image, alt, caption, className }: TrekPhotoProps) {
           alt={alt}
           fill
           priority
+          unoptimized={image.uploaded}
           sizes="(min-width: 1024px) 50vw, 100vw"
           className="object-cover"
         />
